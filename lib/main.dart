@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'app/routes/app_pages.dart';
+import 'app/services/auth_service.dart';
 import 'app/services/supabase_service.dart';
 import 'app/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize global services
+  // Initialize global services in order
   await Get.putAsync(() => SupabaseService().init());
+  await Get.putAsync(() => AuthService().init());
 
   runApp(const MeetXApp());
 }

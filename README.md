@@ -2,7 +2,7 @@
 
 MeetX is a production-ready, feature-rich real-time messaging, voice, and video calling application built with **Flutter**, **GetX**, and **Supabase** (100% Free-Tier). 
 
-Inspired by WhatsApp's seamless functionality, MeetX features a unique, modern UI with an **Electric Purple & White** design palette, scalable Clean Architecture, and zero third-party platform costs.
+Inspired by WhatsApp's seamless functionality, MeetX features a unique, modern UI with an **Electric Purple & White** design palette (`#6C5CE7`), scalable Clean Architecture, and zero third-party platform costs.
 
 ---
 
@@ -13,7 +13,7 @@ Inspired by WhatsApp's seamless functionality, MeetX features a unique, modern U
 | **Frontend Framework** | [Flutter](https://flutter.dev) (Dart) | Free |
 | **State & Navigation** | [GetX](https://pub.dev/packages/get) + Clean Architecture | Free |
 | **Backend & Database** | [Supabase](https://supabase.com) (PostgreSQL + Realtime WebSockets) | Free |
-| **Authentication** | Supabase Auth (Email, Password, Social Auth) | Free |
+| **Authentication** | Supabase Auth (Email, Password, Google OAuth) | Free |
 | **Storage & Media** | Supabase Storage (Profile pictures, Voice notes, Attachments) | Free |
 | **Theme & Typography** | Material 3 + Google Fonts (`Plus Jakarta Sans`) | Free |
 | **Environment Config** | `flutter_dotenv` (`.env`) | Free |
@@ -26,21 +26,24 @@ Inspired by WhatsApp's seamless functionality, MeetX features a unique, modern U
 lib/
 ├── app/
 │   ├── data/
-│   │   ├── models/            # Data Models (UserModel, MessageModel, ChatModel)
+│   │   ├── models/            # UserModel (Supabase JSON serialization & copyWith)
 │   │   ├── providers/         # Low-level API & Supabase callers
-│   │   └── repositories/      # Domain Repositories (AuthRepository, ChatRepository)
+│   │   └── repositories/      # AuthRepository (SignUp, SignIn, Google OAuth, Reset Password)
 │   ├── modules/
-│   │   └── home/
-│   │       └── views/
-│   │           └── home_view.dart  # Home Screen View
+│   │   ├── auth/              # AuthView & AuthController (Animated Tab Switcher, On-type Validation)
+│   │   ├── home/              # HomeView (User Session Card & Confirmation Logout Dialog)
+│   │   └── splash/            # SplashView & SplashController (Animated Scale/Pulsing Glow Entrance)
 │   ├── routes/
-│   │   ├── app_pages.dart     # Route mapping & GetPages definition
-│   │   └── app_routes.dart    # Route paths constants
+│   │   ├── app_pages.dart     # Dynamic Route Mapping & GetPages
+│   │   └── app_routes.dart    # Route Paths Constants
 │   ├── services/
-│   │   └── supabase_service.dart  # Global Supabase & DotEnv Service
-│   └── theme/
-│       ├── app_colors.dart    # Electric Purple & Dark Violet Palette
-│       └── app_theme.dart     # Light & Dark Material3 ThemeData
+│   │   ├── auth_service.dart     # Global Auth State Listener & Session Rx<UserModel?>
+│   │   └── supabase_service.dart # Global Supabase & DotEnv Service
+│   ├── theme/
+│   │   ├── app_colors.dart    # Electric Purple & Dark Violet Palette
+│   │   └── app_theme.dart     # Light & Dark Material3 ThemeData
+│   └── widgets/
+│       └── google_logo.dart   # Vector-sharp 4-Color Official Google Logo
 └── main.dart                  # App Entry Point & Service Binding
 ```
 
@@ -79,7 +82,16 @@ flutter run
   - GetX Route Management & Dependency Injection
   - Supabase integration with `.env` credential management
   - PostgreSQL Schema with RLS Policies & Realtime Replication
-- [ ] **Phase 2: Authentication & User Profiles**
+- [x] **Phase 2: Authentication & User Profiles**
+  - Data Layer: `UserModel` (with `fromJson`, `toJson`, `copyWith`) & `AuthRepository`
+  - Global State: `AuthService` (`GetxService`) with real-time `onAuthStateChange` listener
+  - Animated Entrance Splash Screen (`SplashView` with glowing pulsing logo)
+  - Glassmorphic Auth Screen (`AuthView` with tab switcher & automatic focus request)
+  - Real-time On-type Form Validation (Email regex, Password length, Username rules)
+  - Custom vector 4-color Google Logo & OAuth deep-linking callback (`io.supabase.meetx://login-callback`)
+  - Forgot Password Flow (Deep-linked password reset emails)
+  - First-time Email Verification Dialog & Confirmation Flow
+  - Session Logout confirmation dialog on `HomeView`
 - [ ] **Phase 3: Realtime 1-on-1 Chat System**
 - [ ] **Phase 4: Voice Notes & Media Sharing**
 - [ ] **Phase 5: Push Notifications & Deep Linking**
