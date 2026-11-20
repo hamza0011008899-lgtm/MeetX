@@ -44,6 +44,9 @@ class AuthService extends GetxService {
       if (event == AuthChangeEvent.signedIn) {
         final profile = await _authRepository.getCurrentProfile();
         currentUser.value = profile;
+        if (Get.currentRoute != Routes.HOME) {
+          Get.offAllNamed(Routes.HOME);
+        }
       } else if (event == AuthChangeEvent.signedOut) {
         currentUser.value = null;
         Get.offAllNamed(Routes.AUTH);
