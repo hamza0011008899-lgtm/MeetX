@@ -69,28 +69,46 @@ class AuthRepository {
     final user = currentUser;
     if (user == null) return null;
 
-    final response = await _client
-        .from('profiles')
-        .select()
-        .eq('id', user.id)
-        .maybeSingle();
+    try {
+      final response = await _client
+          .from('profiles')
+          .select()
+          .eq('id', user.id)
+          .maybeSingle();
 
-    if (response == null) return null;
+      if (response != null) {
+        return UserModel.fromJson(response, userEmail: user.email);
+      }
+    } catch (_) {
+      // Fall through to construct profile from Auth User metadata
+    }
 
-    return UserModel.fromJson(response, userEmail: user.email);
+    // Fallback: construct UserModel directly from Auth User metadata (Google/OAuth details)
+    final meta = user.userMetadata ?? {};
+    return UserModel(
+      id: user.id,
+      email: user.email ?? '',
+      username: meta['username'] as String? ?? user.email?.split('@').first ?? 'user',
+      displayName: meta['display_name'] as String? ?? meta['full_name'] as String? ?? meta['name'] as String? ?? user.email?.split('@').first,
+      avatarUrl: meta['avatar_url'] as String? ?? meta['picture'] as String?,
+    );
   }
 
   /// Fetch profile by user ID
   Future<UserModel?> getProfileById(String userId) async {
-    final response = await _client
-        .from('profiles')
-        .select()
-        .eq('id', userId)
-        .maybeSingle();
+    try {
+      final response = await _client
+          .from('profiles')
+          .select()
+          .eq('id', userId)
+          .maybeSingle();
 
-    if (response == null) return null;
+      if (response == null) return null;
 
-    return UserModel.fromJson(response);
+      return UserModel.fromJson(response);
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Update current user profile details
