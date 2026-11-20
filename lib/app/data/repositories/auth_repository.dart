@@ -22,6 +22,7 @@ class AuthRepository {
     final response = await _client.auth.signUp(
       email: email,
       password: password,
+      emailRedirectTo: 'io.supabase.meetx://login-callback',
       data: {
         'username': username,
         'display_name': displayName ?? username,
