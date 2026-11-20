@@ -47,6 +47,7 @@ class AuthRepository {
     return await _client.auth.signInWithOAuth(
       OAuthProvider.google,
       redirectTo: 'io.supabase.meetx://login-callback',
+      authScreenLaunchMode: LaunchMode.externalApplication,
     );
   }
 
