@@ -117,7 +117,6 @@ class AuthView extends StatelessWidget {
                     ),
                     child: Form(
                       key: controller.formKey,
-                      autovalidateMode: AutovalidateMode.onUserInteraction,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         mainAxisSize: MainAxisSize.min,
@@ -212,6 +211,7 @@ class AuthView extends StatelessWidget {
                                         TextFormField(
                                           controller: controller.usernameController,
                                           focusNode: controller.usernameFocusNode,
+                                          autovalidateMode: AutovalidateMode.onUserInteraction,
                                           keyboardType: TextInputType.text,
                                           style: const TextStyle(fontSize: 14),
                                           decoration: InputDecoration(
@@ -249,6 +249,7 @@ class AuthView extends StatelessWidget {
                           TextFormField(
                             controller: controller.emailController,
                             focusNode: controller.emailFocusNode,
+                            autovalidateMode: AutovalidateMode.onUserInteraction,
                             keyboardType: TextInputType.emailAddress,
                             style: const TextStyle(fontSize: 14),
                             decoration: InputDecoration(
@@ -278,6 +279,7 @@ class AuthView extends StatelessWidget {
                             () => TextFormField(
                               controller: controller.passwordController,
                               focusNode: controller.passwordFocusNode,
+                              autovalidateMode: AutovalidateMode.onUserInteraction,
                               obscureText: !controller.isPasswordVisible.value,
                               style: const TextStyle(fontSize: 14),
                               decoration: InputDecoration(
