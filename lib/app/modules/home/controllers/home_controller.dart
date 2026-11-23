@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import '../../../data/models/chat_model.dart';
 import '../../../data/repositories/chat_repository.dart';
@@ -18,18 +19,21 @@ class HomeController extends GetxController {
     loadUserChats();
   }
 
+  @override
+  void onReady() {
+    super.onReady();
+    loadUserChats();
+  }
+
   /// Load user active conversation list
   Future<void> loadUserChats() async {
     isLoading.value = true;
     try {
       final chats = await _chatRepository.getUserChats();
+      debugPrint('DEBUG loadUserChats found ${chats.length} active chats');
       chatList.assignAll(chats);
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Could not load chat conversations.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      debugPrint('DEBUG loadUserChats error: $e');
     } finally {
       isLoading.value = false;
     }

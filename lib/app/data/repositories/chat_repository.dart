@@ -66,9 +66,8 @@ class ChatRepository {
       // 1. Check if a private chat already exists between these two users
       final myChatsResponse = await _client
           .from('chat_participants')
-          .select('chat_id, chats!inner(is_group)')
-          .eq('user_id', uid)
-          .eq('chats.is_group', false);
+          .select('chat_id')
+          .eq('user_id', uid);
 
       final myChatIds = (myChatsResponse as List)
           .map((e) => e['chat_id'] as String)
@@ -146,7 +145,7 @@ class ChatRepository {
     if (uid == null) return [];
 
     try {
-      // 1. Fetch user's chat IDs
+      // 1. Fetch user's chat IDs from chat_participants
       final myChatsResponse = await _client
           .from('chat_participants')
           .select('chat_id')
@@ -170,23 +169,25 @@ class ChatRepository {
 
         if (chatData == null) continue;
 
-        // Fetch participants for this chat
+        // Fetch participant user IDs for this chat
         final participantsResponse = await _client
             .from('chat_participants')
-            .select('profiles(*)')
+            .select('user_id')
             .eq('chat_id', chatId);
 
         final List<UserModel> participants = [];
         for (final row in participantsResponse as List) {
-          if (row['profiles'] != null) {
-            participants.add(UserModel.fromJson(row['profiles'] as Map<String, dynamic>));
+          final participantId = row['user_id'] as String;
+          final profile = await getProfileById(participantId);
+          if (profile != null) {
+            participants.add(profile);
           }
         }
 
         // Fetch latest message
         final latestMessageResponse = await _client
             .from('messages')
-            .select('*, profiles(*)')
+            .select()
             .eq('chat_id', chatId)
             .order('created_at', ascending: false)
             .limit(1)
@@ -237,7 +238,7 @@ class ChatRepository {
     try {
       final response = await _client
           .from('messages')
-          .select('*, profiles(*)')
+          .select()
           .eq('chat_id', chatId)
           .order('created_at', ascending: true);
 
@@ -268,7 +269,7 @@ class ChatRepository {
           'media_url': mediaUrl,
           'is_read': false,
         })
-        .select('*, profiles(*)')
+        .select()
         .single();
 
     // Update chats table updated_at column
