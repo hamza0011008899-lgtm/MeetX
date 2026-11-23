@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/repositories/chat_repository.dart';
 import '../../../routes/app_pages.dart';
@@ -11,8 +12,11 @@ class UserSearchController extends GetxController {
   final searchInputController = TextEditingController();
   final RxList<UserModel> searchResults = <UserModel>[].obs;
   final RxBool isLoading = false.obs;
+  final RxString debugInfo = ''.obs;
 
   Timer? _debounceTimer;
+
+  String? get currentUserId => _chatRepository.currentUserId;
 
   @override
   void onInit() {
@@ -24,9 +28,18 @@ class UserSearchController extends GetxController {
   void loadUsers(String query) async {
     isLoading.value = true;
     try {
+      final uid = currentUserId;
+      final rawProfiles = await Supabase.instance.client.from('profiles').select();
+      final totalInDb = (rawProfiles as List).length;
+
+      debugInfo.value = 'My ID: ${uid?.substring(0, 8)}... | Profiles in DB: $totalInDb';
+      debugPrint('DEBUG search $debugInfo.value');
+
       final users = await _chatRepository.searchUsers(query.trim());
       searchResults.assignAll(users);
-    } catch (_) {
+    } catch (e) {
+      debugInfo.value = 'Error fetching profiles: $e';
+      debugPrint('DEBUG error: $e');
     } finally {
       isLoading.value = false;
     }
@@ -64,7 +77,7 @@ class UserSearchController extends GetxController {
       Get.back();
       Get.snackbar(
         'Error',
-        'Could not open conversation. Please try again.',
+        'Could not open conversation: $e',
         snackPosition: SnackPosition.BOTTOM,
       );
     }
