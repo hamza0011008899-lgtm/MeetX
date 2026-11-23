@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/supabase_service.dart';
@@ -79,12 +80,36 @@ class AuthRepository {
 
       if (response != null) {
         return UserModel.fromJson(response, userEmail: user.email);
+      } else {
+        // Auto-create missing profile row if trigger didn't run
+        final meta = user.userMetadata ?? {};
+        final username = meta['username'] as String? ?? user.email?.split('@').first ?? 'user_${user.id.substring(0, 5)}';
+        final displayName = meta['display_name'] as String? ?? meta['full_name'] as String? ?? meta['name'] as String? ?? user.email?.split('@').first;
+        final avatarUrl = meta['avatar_url'] as String? ?? meta['picture'] as String?;
+
+        await _client.from('profiles').upsert({
+          'id': user.id,
+          'username': username,
+          'display_name': displayName,
+          'avatar_url': avatarUrl,
+          'status_message': 'Hey there! I am using MeetX.',
+          'is_online': true,
+        });
+
+        return UserModel(
+          id: user.id,
+          email: user.email ?? '',
+          username: username,
+          displayName: displayName,
+          avatarUrl: avatarUrl,
+          isOnline: true,
+        );
       }
-    } catch (_) {
-      // Fall through to construct profile from Auth User metadata
+    } catch (e) {
+      debugPrint('DEBUG getCurrentProfile error: $e');
     }
 
-    // Fallback: construct UserModel directly from Auth User metadata (Google/OAuth details)
+    // Fallback: construct UserModel directly from Auth User metadata
     final meta = user.userMetadata ?? {};
     return UserModel(
       id: user.id,

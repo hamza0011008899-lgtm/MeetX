@@ -35,36 +35,25 @@ class ChatRepository {
     if (uid == null) return [];
 
     try {
-      final q = query.trim();
-      if (q.isEmpty) {
-        final response = await _client
-            .from('profiles')
-            .select()
-            .neq('id', uid)
-            .limit(30);
-        return (response as List).map((json) => UserModel.fromJson(json)).toList();
-      }
-
+      final q = query.trim().toLowerCase();
       final response = await _client
           .from('profiles')
           .select()
-          .or('username.ilike.%$q%,display_name.ilike.%$q%')
           .neq('id', uid)
-          .limit(30);
+          .limit(50);
 
-      return (response as List).map((json) => UserModel.fromJson(json)).toList();
+      final list = (response as List).map((json) => UserModel.fromJson(json)).toList();
+
+      if (q.isEmpty) return list;
+
+      return list.where((user) {
+        final username = user.username.toLowerCase();
+        final displayName = (user.displayName ?? '').toLowerCase();
+        return username.contains(q) || displayName.contains(q);
+      }).toList();
     } catch (e) {
       debugPrint('DEBUG searchUsers error: $e');
-      try {
-        final fallbackResponse = await _client
-            .from('profiles')
-            .select()
-            .neq('id', uid)
-            .limit(30);
-        return (fallbackResponse as List).map((json) => UserModel.fromJson(json)).toList();
-      } catch (_) {
-        return [];
-      }
+      return [];
     }
   }
 
