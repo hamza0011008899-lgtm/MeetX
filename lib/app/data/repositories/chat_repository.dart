@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/supabase_service.dart';
@@ -22,7 +23,8 @@ class ChatRepository {
       if (response == null) return null;
 
       return UserModel.fromJson(response);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('DEBUG getProfileById error: $e');
       return null;
     }
   }
@@ -32,14 +34,20 @@ class ChatRepository {
     final uid = currentUserId;
     if (uid == null || query.trim().isEmpty) return [];
 
-    final response = await _client
-        .from('profiles')
-        .select()
-        .or('username.ilike.%$query%,display_name.ilike.%$query%')
-        .neq('id', uid)
-        .limit(20);
+    try {
+      final q = query.trim();
+      final response = await _client
+          .from('profiles')
+          .select()
+          .or('username.ilike.%$q%,display_name.ilike.%$q%')
+          .neq('id', uid)
+          .limit(20);
 
-    return (response as List).map((json) => UserModel.fromJson(json)).toList();
+      return (response as List).map((json) => UserModel.fromJson(json)).toList();
+    } catch (e) {
+      debugPrint('DEBUG searchUsers error: $e');
+      return [];
+    }
   }
 
   /// Get or Create a 1-on-1 chat room with another user
@@ -47,46 +55,51 @@ class ChatRepository {
     final uid = currentUserId;
     if (uid == null) throw Exception('User not authenticated');
 
-    // 1. Check if a private chat already exists between these two users
-    final myChatsResponse = await _client
-        .from('chat_participants')
-        .select('chat_id, chats!inner(is_group)')
-        .eq('user_id', uid)
-        .eq('chats.is_group', false);
-
-    final myChatIds = (myChatsResponse as List)
-        .map((e) => e['chat_id'] as String)
-        .toList();
-
-    if (myChatIds.isNotEmpty) {
-      final sharedChatResponse = await _client
+    try {
+      // 1. Check if a private chat already exists between these two users
+      final myChatsResponse = await _client
           .from('chat_participants')
-          .select('chat_id')
-          .eq('user_id', otherUserId)
-          .filter('chat_id', 'in', myChatIds)
-          .maybeSingle();
+          .select('chat_id, chats!inner(is_group)')
+          .eq('user_id', uid)
+          .eq('chats.is_group', false);
 
-      if (sharedChatResponse != null) {
-        return sharedChatResponse['chat_id'] as String;
+      final myChatIds = (myChatsResponse as List)
+          .map((e) => e['chat_id'] as String)
+          .toList();
+
+      if (myChatIds.isNotEmpty) {
+        final sharedChatResponse = await _client
+            .from('chat_participants')
+            .select('chat_id')
+            .eq('user_id', otherUserId)
+            .filter('chat_id', 'in', myChatIds)
+            .maybeSingle();
+
+        if (sharedChatResponse != null) {
+          return sharedChatResponse['chat_id'] as String;
+        }
       }
+
+      // 2. If no chat exists, create a new chat entry
+      final newChatResponse = await _client
+          .from('chats')
+          .insert({'is_group': false})
+          .select('id')
+          .single();
+
+      final newChatId = newChatResponse['id'] as String;
+
+      // 3. Add both users to chat_participants
+      await _client.from('chat_participants').insert([
+        {'chat_id': newChatId, 'user_id': uid},
+        {'chat_id': newChatId, 'user_id': otherUserId},
+      ]);
+
+      return newChatId;
+    } catch (e) {
+      debugPrint('DEBUG getOrCreateSingleChat error: $e');
+      rethrow;
     }
-
-    // 2. If no chat exists, create a new chat entry
-    final newChatResponse = await _client
-        .from('chats')
-        .insert({'is_group': false})
-        .select('id')
-        .single();
-
-    final newChatId = newChatResponse['id'] as String;
-
-    // 3. Add both users to chat_participants
-    await _client.from('chat_participants').insert([
-      {'chat_id': newChatId, 'user_id': uid},
-      {'chat_id': newChatId, 'user_id': otherUserId},
-    ]);
-
-    return newChatId;
   }
 
   /// Create a Group Chat room with multiple members
@@ -94,25 +107,30 @@ class ChatRepository {
     final uid = currentUserId;
     if (uid == null) throw Exception('User not authenticated');
 
-    // 1. Create group entry in chats table
-    final newChatResponse = await _client
-        .from('chats')
-        .insert({'is_group': true, 'name': groupName})
-        .select('id')
-        .single();
+    try {
+      // 1. Create group entry in chats table
+      final newChatResponse = await _client
+          .from('chats')
+          .insert({'is_group': true, 'name': groupName})
+          .select('id')
+          .single();
 
-    final newChatId = newChatResponse['id'] as String;
+      final newChatId = newChatResponse['id'] as String;
 
-    // 2. Ensure creator is in participants
-    final allMemberIds = {uid, ...memberIds}.toList();
+      // 2. Ensure creator is in participants
+      final allMemberIds = {uid, ...memberIds}.toList();
 
-    final participantRows = allMemberIds
-        .map((memberId) => {'chat_id': newChatId, 'user_id': memberId})
-        .toList();
+      final participantRows = allMemberIds
+          .map((memberId) => {'chat_id': newChatId, 'user_id': memberId})
+          .toList();
 
-    await _client.from('chat_participants').insert(participantRows);
+      await _client.from('chat_participants').insert(participantRows);
 
-    return newChatId;
+      return newChatId;
+    } catch (e) {
+      debugPrint('DEBUG createGroupChat error: $e');
+      rethrow;
+    }
   }
 
   /// Fetch all active chat rooms for the logged-in user
@@ -120,97 +138,107 @@ class ChatRepository {
     final uid = currentUserId;
     if (uid == null) return [];
 
-    // 1. Fetch user's chat IDs
-    final myChatsResponse = await _client
-        .from('chat_participants')
-        .select('chat_id')
-        .eq('user_id', uid);
-
-    final chatIds = (myChatsResponse as List)
-        .map((e) => e['chat_id'] as String)
-        .toList();
-
-    if (chatIds.isEmpty) return [];
-
-    // 2. Fetch details for each chat room
-    final List<ChatModel> chatList = [];
-
-    for (final chatId in chatIds) {
-      final chatData = await _client
-          .from('chats')
-          .select()
-          .eq('id', chatId)
-          .maybeSingle();
-
-      if (chatData == null) continue;
-
-      // Fetch participants for this chat
-      final participantsResponse = await _client
+    try {
+      // 1. Fetch user's chat IDs
+      final myChatsResponse = await _client
           .from('chat_participants')
-          .select('profiles(*)')
-          .eq('chat_id', chatId);
+          .select('chat_id')
+          .eq('user_id', uid);
 
-      final List<UserModel> participants = [];
-      for (final row in participantsResponse as List) {
-        if (row['profiles'] != null) {
-          participants.add(UserModel.fromJson(row['profiles'] as Map<String, dynamic>));
+      final chatIds = (myChatsResponse as List)
+          .map((e) => e['chat_id'] as String)
+          .toList();
+
+      if (chatIds.isEmpty) return [];
+
+      // 2. Fetch details for each chat room
+      final List<ChatModel> chatList = [];
+
+      for (final chatId in chatIds) {
+        final chatData = await _client
+            .from('chats')
+            .select()
+            .eq('id', chatId)
+            .maybeSingle();
+
+        if (chatData == null) continue;
+
+        // Fetch participants for this chat
+        final participantsResponse = await _client
+            .from('chat_participants')
+            .select('profiles(*)')
+            .eq('chat_id', chatId);
+
+        final List<UserModel> participants = [];
+        for (final row in participantsResponse as List) {
+          if (row['profiles'] != null) {
+            participants.add(UserModel.fromJson(row['profiles'] as Map<String, dynamic>));
+          }
         }
+
+        // Fetch latest message
+        final latestMessageResponse = await _client
+            .from('messages')
+            .select('*, profiles(*)')
+            .eq('chat_id', chatId)
+            .order('created_at', ascending: false)
+            .limit(1)
+            .maybeSingle();
+
+        MessageModel? latestMessage;
+        if (latestMessageResponse != null) {
+          latestMessage = MessageModel.fromJson(latestMessageResponse);
+        }
+
+        // Fetch unread count for current user
+        final unreadCountResponse = await _client
+            .from('messages')
+            .select('id')
+            .eq('chat_id', chatId)
+            .neq('sender_id', uid)
+            .eq('is_read', false);
+
+        final unreadCount = (unreadCountResponse as List).length;
+
+        chatList.add(
+          ChatModel.fromJson(
+            chatData,
+            currentUserId: uid,
+            participantsList: participants,
+            latestMessage: latestMessage,
+            unreadCount: unreadCount,
+          ),
+        );
       }
 
-      // Fetch latest message
-      final latestMessageResponse = await _client
-          .from('messages')
-          .select('*, profiles(*)')
-          .eq('chat_id', chatId)
-          .order('created_at', ascending: false)
-          .limit(1)
-          .maybeSingle();
+      // Sort chats by most recent message / update timestamp
+      chatList.sort((a, b) {
+        final aTime = a.lastMessage?.createdAt ?? a.updatedAt ?? DateTime(1970);
+        final bTime = b.lastMessage?.createdAt ?? b.updatedAt ?? DateTime(1970);
+        return bTime.compareTo(aTime);
+      });
 
-      MessageModel? latestMessage;
-      if (latestMessageResponse != null) {
-        latestMessage = MessageModel.fromJson(latestMessageResponse);
-      }
-
-      // Fetch unread count for current user
-      final unreadCountResponse = await _client
-          .from('messages')
-          .select('id')
-          .eq('chat_id', chatId)
-          .neq('sender_id', uid)
-          .eq('is_read', false);
-
-      final unreadCount = (unreadCountResponse as List).length;
-
-      chatList.add(
-        ChatModel.fromJson(
-          chatData,
-          currentUserId: uid,
-          participantsList: participants,
-          latestMessage: latestMessage,
-          unreadCount: unreadCount,
-        ),
-      );
+      return chatList;
+    } catch (e) {
+      debugPrint('DEBUG getUserChats error: $e');
+      return [];
     }
-
-    // Sort chats by most recent message / update timestamp
-    chatList.sort((a, b) {
-      final aTime = a.lastMessage?.createdAt ?? a.updatedAt ?? DateTime(1970);
-      final bTime = b.lastMessage?.createdAt ?? b.updatedAt ?? DateTime(1970);
-      return bTime.compareTo(aTime);
-    });
-
-    return chatList;
   }
 
   /// Fetch message history for a specific chat room
   Future<List<MessageModel>> getChatMessages(String chatId) async {
-    final response = await _client
-        .from('messages')
-        .select('*, profiles(*)')
-        .eq('chat_id', chatId)
-        .order('created_at', ascending: true);
+    try {
+      final response = await _client
+          .from('messages')
+          .select('*, profiles(*)')
+          .eq('chat_id', chatId)
+          .order('created_at', ascending: true);
 
-    return (response as List).map((json) => MessageModel.fromJson(json)).toList();
+      return (response as List).map((json) => MessageModel.fromJson(json)).toList();
+    } catch (e) {
+      debugPrint('DEBUG getChatMessages error: $e');
+      return [];
+    }
   }
 
   /// Send a message in a chat room
