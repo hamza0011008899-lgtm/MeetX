@@ -10,6 +10,23 @@ class ChatRepository {
 
   String? get currentUserId => _client.auth.currentUser?.id;
 
+  /// Fetch profile by user ID
+  Future<UserModel?> getProfileById(String userId) async {
+    try {
+      final response = await _client
+          .from('profiles')
+          .select()
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (response == null) return null;
+
+      return UserModel.fromJson(response);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Search for users by username or display name
   Future<List<UserModel>> searchUsers(String query) async {
     final uid = currentUserId;
@@ -253,6 +270,8 @@ class ChatRepository {
   ) {
     final channel = _client.channel('public:messages:$chatId');
 
+    Future<UserModel?> fetchProfile(String uid) => getProfileById(uid);
+
     channel.onPostgresChanges(
       event: PostgresChangeEvent.insert,
       schema: 'public',
@@ -267,7 +286,7 @@ class ChatRepository {
         final senderId = newRecord['sender_id'] as String;
 
         // Fetch sender profile details
-        final senderProfile = await getProfileById(senderId);
+        final senderProfile = await fetchProfile(senderId);
 
         final message = MessageModel.fromJson({
           ...newRecord,

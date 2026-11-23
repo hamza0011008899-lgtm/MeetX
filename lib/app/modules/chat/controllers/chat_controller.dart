@@ -95,7 +95,7 @@ class ChatController extends GetxController {
     if (_broadcastDebounce?.isActive ?? false) return;
     _broadcastDebounce = Timer(const Duration(milliseconds: 800), () {});
 
-    _realtimeChannel?.sendBroadcast(
+    _realtimeChannel?.sendBroadcastEvent(
       event: 'typing',
       payload: {'sender_id': currentUserId},
     );
