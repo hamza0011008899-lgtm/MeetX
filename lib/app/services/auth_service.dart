@@ -1,11 +1,12 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/user_model.dart';
 import '../data/repositories/auth_repository.dart';
 import '../routes/app_pages.dart';
 
-class AuthService extends GetxService {
+class AuthService extends GetxService with WidgetsBindingObserver {
   final AuthRepository _authRepository = AuthRepository();
 
   /// Reactive observable holding the current logged-in user profile
@@ -17,13 +18,39 @@ class AuthService extends GetxService {
   StreamSubscription<AuthState>? _authStateSubscription;
 
   Future<AuthService> init() async {
+    WidgetsBinding.instance.addObserver(this);
+
     // 1. Initial check on app startup
     await _loadInitialUser();
 
     // 2. Listen to real-time Supabase Auth state changes (login, logout, session refresh)
     _listenToAuthStateChanges();
 
+    // 3. Mark user online
+    updateOnlineStatus(true);
+
     return this;
+  }
+
+  /// Update online/offline presence status in database
+  Future<void> updateOnlineStatus(bool isOnline) async {
+    final uid = _authRepository.currentUser?.id;
+    if (uid == null) return;
+    try {
+      await Supabase.instance.client.from('profiles').update({
+        'is_online': isOnline,
+        'last_seen': DateTime.now().toIso8601String(),
+      }).eq('id', uid);
+    } catch (_) {}
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      updateOnlineStatus(true);
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      updateOnlineStatus(false);
+    }
   }
 
   /// Load user profile if a valid session exists on app launch
@@ -44,10 +71,12 @@ class AuthService extends GetxService {
       if (event == AuthChangeEvent.signedIn) {
         final profile = await _authRepository.getCurrentProfile();
         currentUser.value = profile;
+        updateOnlineStatus(true);
         if (Get.currentRoute != Routes.HOME) {
           Get.offAllNamed(Routes.HOME);
         }
       } else if (event == AuthChangeEvent.signedOut) {
+        updateOnlineStatus(false);
         currentUser.value = null;
         Get.offAllNamed(Routes.AUTH);
       } else if (event == AuthChangeEvent.tokenRefreshed) {
@@ -65,6 +94,8 @@ class AuthService extends GetxService {
 
   @override
   void onClose() {
+    updateOnlineStatus(false);
+    WidgetsBinding.instance.removeObserver(this);
     _authStateSubscription?.cancel();
     super.onClose();
   }

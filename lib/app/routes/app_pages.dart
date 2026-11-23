@@ -1,5 +1,8 @@
 import 'package:get/get.dart';
 import '../modules/auth/views/auth_view.dart';
+import '../modules/chat/views/chat_view.dart';
+import '../modules/chat/views/group_create_view.dart';
+import '../modules/chat/views/user_search_view.dart';
 import '../modules/home/views/home_view.dart';
 import '../modules/splash/views/splash_view.dart';
 
@@ -22,6 +25,18 @@ class AppPages {
     GetPage(
       name: _Paths.HOME,
       page: () => const HomeView(),
+    ),
+    GetPage(
+      name: _Paths.USER_SEARCH,
+      page: () => const UserSearchView(),
+    ),
+    GetPage(
+      name: _Paths.GROUP_CREATE,
+      page: () => const GroupCreateView(),
+    ),
+    GetPage(
+      name: _Paths.CHAT,
+      page: () => const ChatView(),
     ),
   ];
 }

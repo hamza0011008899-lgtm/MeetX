@@ -26,18 +26,19 @@ Inspired by WhatsApp's seamless functionality, MeetX features a unique, modern U
 lib/
 ├── app/
 │   ├── data/
-│   │   ├── models/            # UserModel (Supabase JSON serialization & copyWith)
+│   │   ├── models/            # UserModel, ChatModel, MessageModel
 │   │   ├── providers/         # Low-level API & Supabase callers
-│   │   └── repositories/      # AuthRepository (SignUp, SignIn, Google OAuth, Reset Password)
+│   │   └── repositories/      # AuthRepository & ChatRepository (Realtime & Queries)
 │   ├── modules/
-│   │   ├── auth/              # AuthView & AuthController (Animated Tab Switcher, On-type Validation)
-│   │   ├── home/              # HomeView (User Session Card & Confirmation Logout Dialog)
-│   │   └── splash/            # SplashView & SplashController (Animated Scale/Pulsing Glow Entrance)
+│   │   ├── auth/              # AuthView & AuthController
+│   │   ├── chat/              # ChatView, UserSearchView, GroupCreateView & Controllers
+│   │   ├── home/              # HomeView & HomeController (Conversations & Unread Badges)
+│   │   └── splash/            # SplashView & SplashController
 │   ├── routes/
 │   │   ├── app_pages.dart     # Dynamic Route Mapping & GetPages
 │   │   └── app_routes.dart    # Route Paths Constants
 │   ├── services/
-│   │   ├── auth_service.dart     # Global Auth State Listener & Session Rx<UserModel?>
+│   │   ├── auth_service.dart     # Global Auth State Listener & Presence Manager
 │   │   └── supabase_service.dart # Global Supabase & DotEnv Service
 │   ├── theme/
 │   │   ├── app_colors.dart    # Electric Purple & Dark Violet Palette
@@ -83,16 +84,23 @@ flutter run
   - Supabase integration with `.env` credential management
   - PostgreSQL Schema with RLS Policies & Realtime Replication
 - [x] **Phase 2: Authentication & User Profiles**
-  - Data Layer: `UserModel` (with `fromJson`, `toJson`, `copyWith`) & `AuthRepository`
+  - Data Layer: `UserModel` & `AuthRepository`
   - Global State: `AuthService` (`GetxService`) with real-time `onAuthStateChange` listener
-  - Animated Entrance Splash Screen (`SplashView` with glowing pulsing logo)
-  - Glassmorphic Auth Screen (`AuthView` with tab switcher & automatic focus request)
-  - Real-time On-type Form Validation (Email regex, Password length, Username rules)
-  - Custom vector 4-color Google Logo & OAuth deep-linking callback (`io.supabase.meetx://login-callback`)
-  - Forgot Password Flow (Deep-linked password reset emails)
-  - First-time Email Verification Dialog & Confirmation Flow
-  - Session Logout confirmation dialog on `HomeView`
-- [ ] **Phase 3: Realtime 1-on-1 Chat System**
+  - Animated Entrance Splash Screen (`SplashView`)
+  - Glassmorphic Auth Screen (`AuthView` with tab switcher & auto-focus)
+  - Real-time On-type Form Validation
+  - Custom vector 4-color Google Logo & OAuth deep-linking
+  - Forgot Password Flow & First-time Email Verification Dialog
+- [x] **Phase 3: Realtime 1-on-1 & Group Chat System**
+  - Data Models: `MessageModel` & `ChatModel` (supports 1-on-1 private & Group chats)
+  - Data Repository: `ChatRepository` (search users, create chats, fetch history, Realtime WebSockets)
+  - Live User Search (`UserSearchView` with debounced search)
+  - Realtime Chat Screen (`ChatView` with Electric Purple bubbles, timestamps & blue ticks)
+  - Live Typing Indicator (`"typing..."` broadcast stream)
+  - Message Long-Press Menu (Copy text & Delete message for everyone)
+  - Online / Offline Status Presence tracking (`WidgetsBindingObserver`)
+  - Group Chat Creation (`GroupCreateView` with multi-member selector)
+  - Active Conversations List on `HomeView` with unread badge counters
 - [ ] **Phase 4: Voice Notes & Media Sharing**
 - [ ] **Phase 5: Push Notifications & Deep Linking**
 - [ ] **Phase 6: WebRTC Audio & Video Calling**
