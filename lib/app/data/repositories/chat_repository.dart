@@ -29,24 +29,42 @@ class ChatRepository {
     }
   }
 
-  /// Search for users by username or display name
+  /// Fetch all users or search by query
   Future<List<UserModel>> searchUsers(String query) async {
     final uid = currentUserId;
-    if (uid == null || query.trim().isEmpty) return [];
+    if (uid == null) return [];
 
     try {
       final q = query.trim();
+      if (q.isEmpty) {
+        final response = await _client
+            .from('profiles')
+            .select()
+            .neq('id', uid)
+            .limit(30);
+        return (response as List).map((json) => UserModel.fromJson(json)).toList();
+      }
+
       final response = await _client
           .from('profiles')
           .select()
           .or('username.ilike.%$q%,display_name.ilike.%$q%')
           .neq('id', uid)
-          .limit(20);
+          .limit(30);
 
       return (response as List).map((json) => UserModel.fromJson(json)).toList();
     } catch (e) {
       debugPrint('DEBUG searchUsers error: $e');
-      return [];
+      try {
+        final fallbackResponse = await _client
+            .from('profiles')
+            .select()
+            .neq('id', uid)
+            .limit(30);
+        return (fallbackResponse as List).map((json) => UserModel.fromJson(json)).toList();
+      } catch (_) {
+        return [];
+      }
     }
   }
 

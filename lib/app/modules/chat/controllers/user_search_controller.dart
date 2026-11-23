@@ -14,29 +14,30 @@ class UserSearchController extends GetxController {
 
   Timer? _debounceTimer;
 
+  @override
+  void onInit() {
+    super.onInit();
+    loadUsers('');
+  }
+
+  /// Perform live search or fetch all registered users
+  void loadUsers(String query) async {
+    isLoading.value = true;
+    try {
+      final users = await _chatRepository.searchUsers(query.trim());
+      searchResults.assignAll(users);
+    } catch (_) {
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   /// Perform live search with debounce
   void onSearchChanged(String query) {
     if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
 
-    _debounceTimer = Timer(const Duration(milliseconds: 350), () async {
-      if (query.trim().isEmpty) {
-        searchResults.clear();
-        return;
-      }
-
-      isLoading.value = true;
-      try {
-        final users = await _chatRepository.searchUsers(query.trim());
-        searchResults.assignAll(users);
-      } catch (e) {
-        Get.snackbar(
-          'Error',
-          'Failed to search users. Please try again.',
-          snackPosition: SnackPosition.BOTTOM,
-        );
-      } finally {
-        isLoading.value = false;
-      }
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      loadUsers(query);
     });
   }
 
