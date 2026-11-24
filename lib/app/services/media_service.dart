@@ -66,7 +66,7 @@ class MediaService extends GetxService {
       final result = await FilePickerPlatform.instance.pickFiles(
         type: FileType.any,
       );
-      if (result != null && result.isNotEmpty && result.first.path != null) {
+      if (result.isNotEmpty && result.first.path != null) {
         return File(result.first.path!);
       }
     } catch (e) {
@@ -118,6 +118,7 @@ class MediaService extends GetxService {
     required File file,
     required String bucketName,
     required String path,
+    String? mimeType,
   }) async {
     try {
       final bytes = await file.readAsBytes();
@@ -125,17 +126,19 @@ class MediaService extends GetxService {
       await _client.storage.from(bucketName).uploadBinary(
             path,
             bytes,
-            fileOptions: const FileOptions(
+            fileOptions: FileOptions(
               upsert: true,
               cacheControl: '3600',
+              contentType: mimeType ?? 'image/jpeg',
             ),
           );
 
       final String publicUrl = _client.storage.from(bucketName).getPublicUrl(path);
+      debugPrint('DEBUG uploadMedia success URL: $publicUrl');
       return publicUrl;
     } catch (e) {
       debugPrint('DEBUG uploadMedia error: $e');
-      return null;
+      rethrow;
     }
   }
 
