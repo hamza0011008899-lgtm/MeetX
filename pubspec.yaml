@@ -46,6 +46,8 @@ dependencies:
 
   # UI & Styling
   google_fonts: ^6.2.1
+  image_picker: ^1.2.4
+  file_picker: ^13.4.1
 
 dev_dependencies:
   flutter_test:

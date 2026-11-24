@@ -66,7 +66,9 @@ class MessageModel {
     bool? isRead,
     DateTime? createdAt,
     UserModel? sender,
-  }) {
+  })
+
+  {
     return MessageModel(
       id: id ?? this.id,
       chatId: chatId ?? this.chatId,

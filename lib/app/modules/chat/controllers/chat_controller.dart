@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -7,10 +8,12 @@ import '../../../data/models/message_model.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/repositories/chat_repository.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/media_service.dart';
 
 class ChatController extends GetxController {
   final ChatRepository _chatRepository = ChatRepository();
   final AuthService _authService = Get.find<AuthService>();
+  final MediaService _mediaService = Get.find<MediaService>();
 
   final messageInputController = TextEditingController();
   final scrollController = ScrollController();
@@ -21,6 +24,7 @@ class ChatController extends GetxController {
   final RxList<MessageModel> messages = <MessageModel>[].obs;
   final RxBool isLoading = true.obs;
   final RxBool isSending = false.obs;
+  final RxBool isUploadingMedia = false.obs;
   final RxBool isPartnerTyping = false.obs;
 
   RealtimeChannel? _realtimeChannel;
@@ -127,6 +131,49 @@ class ChatController extends GetxController {
       );
     } finally {
       isSending.value = false;
+    }
+  }
+
+  /// Send an Image Message (Camera or Gallery)
+  Future<void> sendImage(bool fromCamera) async {
+    final File? file = fromCamera
+        ? await _mediaService.pickImageFromCamera()
+        : await _mediaService.pickImageFromGallery();
+
+    if (file == null) return;
+
+    isUploadingMedia.value = true;
+    try {
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final path = '$chatId/$fileName';
+
+      final publicUrl = await _mediaService.uploadMedia(
+        file: file,
+        bucketName: 'chat_media',
+        path: path,
+      );
+
+      if (publicUrl != null) {
+        final sentMessage = await _chatRepository.sendMessage(
+          chatId: chatId,
+          content: '📷 Photo',
+          type: 'image',
+          mediaUrl: publicUrl,
+        );
+
+        if (!messages.any((m) => m.id == sentMessage.id)) {
+          messages.add(sentMessage);
+          _scrollToBottom();
+        }
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Upload Failed',
+        'Could not send photo. Please try again.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      isUploadingMedia.value = false;
     }
   }
 

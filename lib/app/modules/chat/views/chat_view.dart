@@ -6,6 +6,83 @@ import '../controllers/chat_controller.dart';
 class ChatView extends StatelessWidget {
   const ChatView({super.key});
 
+  void _showAttachmentOptions(BuildContext context, ChatController controller) {
+    Get.bottomSheet(
+      Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? AppColors.darkSurface
+              : AppColors.lightSurface,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.withAlpha(100),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildAttachmentItem(
+                  icon: Icons.camera_alt_rounded,
+                  label: 'Camera',
+                  color: Colors.pinkAccent,
+                  onTap: () {
+                    Get.back();
+                    controller.sendImage(true);
+                  },
+                ),
+                _buildAttachmentItem(
+                  icon: Icons.photo_library_rounded,
+                  label: 'Gallery',
+                  color: AppColors.primary,
+                  onTap: () {
+                    Get.back();
+                    controller.sendImage(false);
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAttachmentItem({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: color.withAlpha(30),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
   void _showMessageOptions(BuildContext context, ChatController controller, dynamic message, bool isMe) {
     Get.bottomSheet(
       Container(
@@ -42,6 +119,23 @@ class ChatView extends StatelessWidget {
                 },
               ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _openFullScreenImage(String imageUrl) {
+    Get.to(
+      () => Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          iconTheme: const IconThemeData(color: Colors.white),
+        ),
+        body: Center(
+          child: InteractiveViewer(
+            child: Image.network(imageUrl),
+          ),
         ),
       ),
     );
@@ -131,6 +225,31 @@ class ChatView extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
+            // Uploading progress banner
+            Obx(
+              () => controller.isUploadingMedia.value
+                  ? Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                      color: AppColors.primary.withAlpha(20),
+                      child: const Row(
+                        children: [
+                          SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            'Uploading photo...',
+                            style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+
             // Messages Conversation History
             Expanded(
               child: Obx(() {
@@ -170,17 +289,21 @@ class ChatView extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final message = controller.messages[index];
                     final isMe = message.senderId == controller.currentUserId;
+                    final isImage = message.type == 'image' && message.mediaUrl != null;
 
                     return Align(
                       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                       child: GestureDetector(
                         onLongPress: () => _showMessageOptions(context, controller, message, isMe),
+                        onTap: isImage ? () => _openFullScreenImage(message.mediaUrl!) : null,
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 8),
                           constraints: BoxConstraints(
                             maxWidth: MediaQuery.of(context).size.width * 0.75,
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          padding: isImage
+                              ? const EdgeInsets.all(4)
+                              : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
                             color: isMe
                                 ? AppColors.primary
@@ -204,39 +327,64 @@ class ChatView extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              Text(
-                                message.content ?? '',
-                                style: TextStyle(
-                                  fontSize: 14.5,
-                                  color: isMe
-                                      ? Colors.white
-                                      : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    message.createdAt != null
-                                        ? '${message.createdAt!.hour.toString().padLeft(2, '0')}:${message.createdAt!.minute.toString().padLeft(2, '0')}'
-                                        : '',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: isMe
-                                          ? Colors.white.withAlpha(180)
-                                          : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                                    ),
+                              if (isImage) ...[
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(
+                                    message.mediaUrl!,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    height: 180,
+                                    loadingBuilder: (context, child, progress) {
+                                      if (progress == null) return child;
+                                      return const SizedBox(
+                                        height: 180,
+                                        child: Center(
+                                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                        ),
+                                      );
+                                    },
                                   ),
-                                  if (isMe) ...[
-                                    const SizedBox(width: 4),
-                                    Icon(
-                                      message.isRead ? Icons.done_all_rounded : Icons.done_rounded,
-                                      size: 14,
-                                      color: message.isRead ? AppColors.tickBlue : Colors.white.withAlpha(180),
+                                ),
+                                const SizedBox(height: 4),
+                              ] else ...[
+                                Text(
+                                  message.content ?? '',
+                                  style: TextStyle(
+                                    fontSize: 14.5,
+                                    color: isMe
+                                        ? Colors.white
+                                        : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                              ],
+                              Padding(
+                                padding: isImage ? const EdgeInsets.only(right: 6, bottom: 4) : EdgeInsets.zero,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      message.createdAt != null
+                                          ? '${message.createdAt!.hour.toString().padLeft(2, '0')}:${message.createdAt!.minute.toString().padLeft(2, '0')}'
+                                          : '',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: isMe
+                                            ? Colors.white.withAlpha(180)
+                                            : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                                      ),
                                     ),
+                                    if (isMe) ...[
+                                      const SizedBox(width: 4),
+                                      Icon(
+                                        message.isRead ? Icons.done_all_rounded : Icons.done_rounded,
+                                        size: 14,
+                                        color: message.isRead ? AppColors.tickBlue : Colors.white.withAlpha(180),
+                                      ),
+                                    ],
                                   ],
-                                ],
+                                ),
                               ),
                             ],
                           ),
@@ -250,7 +398,7 @@ class ChatView extends StatelessWidget {
 
             // Bottom Input Bar
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               decoration: BoxDecoration(
                 color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                 boxShadow: [
@@ -263,6 +411,10 @@ class ChatView extends StatelessWidget {
               ),
               child: Row(
                 children: [
+                  IconButton(
+                    icon: const Icon(Icons.attach_file_rounded, color: AppColors.primary),
+                    onPressed: () => _showAttachmentOptions(context, controller),
+                  ),
                   Expanded(
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14),
