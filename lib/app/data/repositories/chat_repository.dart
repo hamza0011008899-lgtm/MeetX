@@ -299,17 +299,18 @@ class ChatRepository {
         .eq('is_read', false);
   }
 
-  /// Subscribe to Realtime WebSocket messages for a specific chat
+  /// Subscribe to Realtime WebSocket messages and read receipts for a specific chat
   RealtimeChannel subscribeToMessages(
     String chatId,
-    void Function(MessageModel message) onNewMessage,
-  ) {
+    void Function(MessageModel message) onNewMessage, {
+    void Function(String messageId, bool isRead)? onMessageUpdated,
+  }) {
     final channel = _client.channel('public:messages:$chatId');
 
     Future<UserModel?> fetchProfile(String uid) => getProfileById(uid);
 
     channel.onPostgresChanges(
-      event: PostgresChangeEvent.insert,
+      event: PostgresChangeEvent.all,
       schema: 'public',
       table: 'messages',
       filter: PostgresChangeFilter(
@@ -318,18 +319,24 @@ class ChatRepository {
         value: chatId,
       ),
       callback: (payload) async {
-        final newRecord = payload.newRecord;
-        final senderId = newRecord['sender_id'] as String;
+        if (payload.eventType == PostgresChangeEvent.insert) {
+          final newRecord = payload.newRecord;
+          final senderId = newRecord['sender_id'] as String;
 
-        // Fetch sender profile details
-        final senderProfile = await fetchProfile(senderId);
+          final senderProfile = await fetchProfile(senderId);
 
-        final message = MessageModel.fromJson({
-          ...newRecord,
-          'profiles': senderProfile?.toJson(),
-        });
+          final message = MessageModel.fromJson({
+            ...newRecord,
+            'profiles': senderProfile?.toJson(),
+          });
 
-        onNewMessage(message);
+          onNewMessage(message);
+        } else if (payload.eventType == PostgresChangeEvent.update) {
+          final updatedRecord = payload.newRecord;
+          final messageId = updatedRecord['id'] as String;
+          final isRead = updatedRecord['is_read'] as bool? ?? false;
+          onMessageUpdated?.call(messageId, isRead);
+        }
       },
     ).subscribe();
 

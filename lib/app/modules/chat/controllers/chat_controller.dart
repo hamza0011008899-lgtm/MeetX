@@ -89,16 +89,26 @@ class ChatController extends GetxController {
 
   /// Subscribe to live WebSocket messages & typing indicators for this room
   void _subscribeToRealtime() {
-    _realtimeChannel = _chatRepository.subscribeToMessages(chatId, (newMessage) {
-      // Avoid duplicate messages if already added
-      if (!messages.any((m) => m.id == newMessage.id)) {
-        messages.add(newMessage);
-        _scrollToBottom();
-        if (newMessage.senderId != currentUserId) {
-          _chatRepository.markMessagesAsRead(chatId);
+    _realtimeChannel = _chatRepository.subscribeToMessages(
+      chatId,
+      (newMessage) {
+        // Avoid duplicate messages if already added
+        if (!messages.any((m) => m.id == newMessage.id)) {
+          messages.add(newMessage);
+          _scrollToBottom();
+          if (newMessage.senderId != currentUserId) {
+            _chatRepository.markMessagesAsRead(chatId);
+          }
         }
-      }
-    });
+      },
+      onMessageUpdated: (messageId, isRead) {
+        // Live update blue ticks on sender's screen instantly!
+        final index = messages.indexWhere((m) => m.id == messageId);
+        if (index != -1) {
+          messages[index] = messages[index].copyWith(isRead: isRead);
+        }
+      },
+    );
 
     // Listen to real-time typing broadcasts
     _realtimeChannel?.onBroadcast(
@@ -118,10 +128,6 @@ class ChatController extends GetxController {
 
   /// Broadcast typing status to partner
   void onTextChanged(String text) {
-    if (isEmojiPickerVisible.value && text.isNotEmpty) {
-      // Keep emoji picker open while typing
-    }
-
     if (_broadcastDebounce?.isActive ?? false) return;
     _broadcastDebounce = Timer(const Duration(milliseconds: 800), () {});
 
@@ -194,9 +200,10 @@ class ChatController extends GetxController {
       }
     } catch (e) {
       Get.snackbar(
-        'Upload Failed',
-        'Could not send photo. Please try again.',
+        'Storage Error',
+        'Please ensure public bucket "chat_media" is created in Supabase Dashboard -> Storage.',
         snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 4),
       );
     } finally {
       isUploadingMedia.value = false;
@@ -250,9 +257,10 @@ class ChatController extends GetxController {
       }
     } catch (e) {
       Get.snackbar(
-        'Error',
-        'Could not send voice note.',
+        'Storage Error',
+        'Please ensure public bucket "chat_media" is created in Supabase Dashboard -> Storage.',
         snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 4),
       );
     } finally {
       isUploadingMedia.value = false;
