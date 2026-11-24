@@ -31,6 +31,8 @@ class ChatController extends GetxController {
   final RxInt recordingSeconds = 0.obs;
   Timer? _recordTimer;
 
+  final RxBool isEmojiPickerVisible = false.obs;
+
   RealtimeChannel? _realtimeChannel;
   Timer? _typingTimer;
   Timer? _broadcastDebounce;
@@ -48,6 +50,22 @@ class ChatController extends GetxController {
       _loadChatHistory();
       _subscribeToRealtime();
     }
+  }
+
+  /// Toggle in-app Emoji Picker
+  void toggleEmojiPicker() {
+    if (isEmojiPickerVisible.value) {
+      isEmojiPickerVisible.value = false;
+    } else {
+      FocusManager.instance.primaryFocus?.unfocus();
+      isEmojiPickerVisible.value = true;
+    }
+  }
+
+  /// Append selected emoji to message field
+  void onEmojiSelected(String emoji) {
+    messageInputController.text += emoji;
+    onTextChanged(messageInputController.text);
   }
 
   /// Load initial message history for this chat room
@@ -100,6 +118,10 @@ class ChatController extends GetxController {
 
   /// Broadcast typing status to partner
   void onTextChanged(String text) {
+    if (isEmojiPickerVisible.value && text.isNotEmpty) {
+      // Keep emoji picker open while typing
+    }
+
     if (_broadcastDebounce?.isActive ?? false) return;
     _broadcastDebounce = Timer(const Duration(milliseconds: 800), () {});
 

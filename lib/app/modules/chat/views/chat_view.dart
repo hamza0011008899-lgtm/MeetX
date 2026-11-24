@@ -1,3 +1,4 @@
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../theme/app_colors.dart';
@@ -483,26 +484,42 @@ class ChatView extends StatelessWidget {
                           ),
                           Expanded(
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              padding: const EdgeInsets.symmetric(horizontal: 6),
                               decoration: BoxDecoration(
                                 color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
                                 borderRadius: BorderRadius.circular(24),
                               ),
-                              child: TextField(
-                                controller: controller.messageInputController,
-                                onChanged: controller.onTextChanged,
-                                textCapitalization: TextCapitalization.sentences,
-                                maxLines: 4,
-                                minLines: 1,
-                                style: const TextStyle(fontSize: 14),
-                                decoration: const InputDecoration(
-                                  hintText: 'Type a message...',
-                                  border: InputBorder.none,
-                                ),
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    icon: Icon(
+                                      controller.isEmojiPickerVisible.value
+                                          ? Icons.keyboard_rounded
+                                          : Icons.sentiment_satisfied_alt_rounded,
+                                      color: AppColors.primary,
+                                      size: 22,
+                                    ),
+                                    onPressed: controller.toggleEmojiPicker,
+                                  ),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: controller.messageInputController,
+                                      onChanged: controller.onTextChanged,
+                                      textCapitalization: TextCapitalization.sentences,
+                                      maxLines: 4,
+                                      minLines: 1,
+                                      style: const TextStyle(fontSize: 14),
+                                      decoration: const InputDecoration(
+                                        hintText: 'Type a message...',
+                                        border: InputBorder.none,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           IconButton(
                             icon: const Icon(Icons.mic_rounded, color: AppColors.primary),
                             onPressed: controller.startVoiceRecording,
@@ -528,6 +545,30 @@ class ChatView extends StatelessWidget {
                         ],
                       ),
                     ),
+            ),
+
+            // In-App Emoji Picker Dock
+            Obx(
+              () => controller.isEmojiPickerVisible.value
+                  ? SizedBox(
+                      height: 250,
+                      child: EmojiPicker(
+                        onEmojiSelected: (category, emoji) {
+                          controller.onEmojiSelected(emoji.emoji);
+                        },
+                        config: Config(
+                          height: 250,
+                          checkPlatformCompatibility: true,
+                          emojiViewConfig: EmojiViewConfig(
+                            backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                          ),
+                          categoryViewConfig: CategoryViewConfig(
+                            backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+                          ),
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
             ),
           ],
         ),
