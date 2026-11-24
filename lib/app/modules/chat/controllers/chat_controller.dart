@@ -183,6 +183,7 @@ class ChatController extends GetxController {
         file: file,
         bucketName: 'chat_media',
         path: path,
+        mimeType: 'image/jpeg',
       );
 
       if (publicUrl != null) {
@@ -200,8 +201,8 @@ class ChatController extends GetxController {
       }
     } catch (e) {
       Get.snackbar(
-        'Storage Error',
-        'Please ensure public bucket "chat_media" is created in Supabase Dashboard -> Storage.',
+        'Upload Error',
+        e.toString(),
         snackPosition: SnackPosition.BOTTOM,
         duration: const Duration(seconds: 4),
       );
@@ -240,6 +241,7 @@ class ChatController extends GetxController {
         file: file,
         bucketName: 'chat_media',
         path: path,
+        mimeType: 'audio/m4a',
       );
 
       if (publicUrl != null) {
@@ -257,8 +259,8 @@ class ChatController extends GetxController {
       }
     } catch (e) {
       Get.snackbar(
-        'Storage Error',
-        'Please ensure public bucket "chat_media" is created in Supabase Dashboard -> Storage.',
+        'Voice Upload Error',
+        e.toString(),
         snackPosition: SnackPosition.BOTTOM,
         duration: const Duration(seconds: 4),
       );
