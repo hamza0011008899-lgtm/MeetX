@@ -27,6 +27,10 @@ class ChatController extends GetxController {
   final RxBool isUploadingMedia = false.obs;
   final RxBool isPartnerTyping = false.obs;
 
+  final RxBool isRecordingVoiceNote = false.obs;
+  final RxInt recordingSeconds = 0.obs;
+  Timer? _recordTimer;
+
   RealtimeChannel? _realtimeChannel;
   Timer? _typingTimer;
   Timer? _broadcastDebounce;
@@ -177,6 +181,71 @@ class ChatController extends GetxController {
     }
   }
 
+  /// Start recording voice note
+  Future<void> startVoiceRecording() async {
+    final success = await _mediaService.startAudioRecording();
+    if (success) {
+      isRecordingVoiceNote.value = true;
+      recordingSeconds.value = 0;
+      _recordTimer?.cancel();
+      _recordTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        recordingSeconds.value++;
+      });
+    }
+  }
+
+  /// Stop and send voice note
+  Future<void> stopAndSendVoiceNote() async {
+    _recordTimer?.cancel();
+    isRecordingVoiceNote.value = false;
+
+    final file = await _mediaService.stopAudioRecording();
+    if (file == null || recordingSeconds.value < 1) return;
+
+    isUploadingMedia.value = true;
+    try {
+      final fileName = 'voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      final path = '$chatId/$fileName';
+
+      final publicUrl = await _mediaService.uploadMedia(
+        file: file,
+        bucketName: 'chat_media',
+        path: path,
+      );
+
+      if (publicUrl != null) {
+        final sentMessage = await _chatRepository.sendMessage(
+          chatId: chatId,
+          content: '🎙️ Voice Note',
+          type: 'audio',
+          mediaUrl: publicUrl,
+        );
+
+        if (!messages.any((m) => m.id == sentMessage.id)) {
+          messages.add(sentMessage);
+          _scrollToBottom();
+        }
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Could not send voice note.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      isUploadingMedia.value = false;
+      recordingSeconds.value = 0;
+    }
+  }
+
+  /// Cancel voice recording
+  Future<void> cancelVoiceRecording() async {
+    _recordTimer?.cancel();
+    isRecordingVoiceNote.value = false;
+    recordingSeconds.value = 0;
+    await _mediaService.cancelAudioRecording();
+  }
+
   /// Copy message text to clipboard
   void copyMessage(String text) {
     Clipboard.setData(ClipboardData(text: text));
@@ -222,6 +291,7 @@ class ChatController extends GetxController {
 
   @override
   void onClose() {
+    _recordTimer?.cancel();
     _typingTimer?.cancel();
     _broadcastDebounce?.cancel();
     _realtimeChannel?.unsubscribe();

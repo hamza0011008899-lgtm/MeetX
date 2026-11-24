@@ -3,12 +3,15 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_service.dart';
 
 class MediaService extends GetxService {
   final SupabaseClient _client = Get.find<SupabaseService>().client;
   final ImagePicker _picker = ImagePicker();
+  final AudioRecorder _audioRecorder = AudioRecorder();
 
   /// Pick an image from gallery
   Future<File?> pickImageFromGallery() async {
@@ -60,16 +63,54 @@ class MediaService extends GetxService {
   /// Pick any document file (.pdf, .doc, .zip, etc.)
   Future<File?> pickDocument() async {
     try {
-      final FilePickerResult? result = await FilePickerPlatform.instance.pickFiles(
+      final result = await FilePickerPlatform.instance.pickFiles(
         type: FileType.any,
       );
-      if (result != null && result.files.isNotEmpty && result.files.single.path != null) {
-        return File(result.files.single.path!);
+      if (result != null && result.isNotEmpty && result.first.path != null) {
+        return File(result.first.path!);
       }
     } catch (e) {
       debugPrint('DEBUG pickDocument error: $e');
     }
     return null;
+  }
+
+  /// Start recording voice note
+  Future<bool> startAudioRecording() async {
+    try {
+      if (await _audioRecorder.hasPermission()) {
+        final dir = await getTemporaryDirectory();
+        final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        await _audioRecorder.start(
+          const RecordConfig(encoder: AudioEncoder.aacLc),
+          path: path,
+        );
+        return true;
+      }
+    } catch (e) {
+      debugPrint('DEBUG startAudioRecording error: $e');
+    }
+    return false;
+  }
+
+  /// Stop audio recording and return recorded file
+  Future<File?> stopAudioRecording() async {
+    try {
+      final path = await _audioRecorder.stop();
+      if (path != null) {
+        return File(path);
+      }
+    } catch (e) {
+      debugPrint('DEBUG stopAudioRecording error: $e');
+    }
+    return null;
+  }
+
+  /// Cancel current audio recording
+  Future<void> cancelAudioRecording() async {
+    try {
+      await _audioRecorder.stop();
+    } catch (_) {}
   }
 
   /// Upload file to Supabase Storage bucket and return public URL
@@ -96,5 +137,11 @@ class MediaService extends GetxService {
       debugPrint('DEBUG uploadMedia error: $e');
       return null;
     }
+  }
+
+  @override
+  void onClose() {
+    _audioRecorder.dispose();
+    super.onClose();
   }
 }

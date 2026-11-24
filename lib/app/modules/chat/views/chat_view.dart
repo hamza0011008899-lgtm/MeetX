@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../theme/app_colors.dart';
+import '../../../widgets/voice_note_player.dart';
 import '../controllers/chat_controller.dart';
 
 class ChatView extends StatelessWidget {
@@ -141,6 +142,12 @@ class ChatView extends StatelessWidget {
     );
   }
 
+  String _formatRecordTime(int seconds) {
+    final mins = (seconds ~/ 60).toString().padLeft(2, '0');
+    final secs = (seconds % 60).toString().padLeft(2, '0');
+    return '$mins:$secs';
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(ChatController());
@@ -241,7 +248,7 @@ class ChatView extends StatelessWidget {
                           ),
                           SizedBox(width: 10),
                           Text(
-                            'Uploading photo...',
+                            'Uploading media...',
                             style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600),
                           ),
                         ],
@@ -290,6 +297,7 @@ class ChatView extends StatelessWidget {
                     final message = controller.messages[index];
                     final isMe = message.senderId == controller.currentUserId;
                     final isImage = message.type == 'image' && message.mediaUrl != null;
+                    final isAudio = message.type == 'audio' && message.mediaUrl != null;
 
                     return Align(
                       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -299,7 +307,7 @@ class ChatView extends StatelessWidget {
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 8),
                           constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.75,
+                            maxWidth: MediaQuery.of(context).size.width * 0.78,
                           ),
                           padding: isImage
                               ? const EdgeInsets.all(4)
@@ -346,6 +354,9 @@ class ChatView extends StatelessWidget {
                                     },
                                   ),
                                 ),
+                                const SizedBox(height: 4),
+                              ] else if (isAudio) ...[
+                                VoiceNotePlayer(audioUrl: message.mediaUrl!, isMe: isMe),
                                 const SizedBox(height: 4),
                               ] else ...[
                                 Text(
@@ -396,67 +407,127 @@ class ChatView extends StatelessWidget {
               }),
             ),
 
-            // Bottom Input Bar
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha(isDark ? 40 : 10),
-                    blurRadius: 8,
-                    offset: const Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.attach_file_rounded, color: AppColors.primary),
-                    onPressed: () => _showAttachmentOptions(context, controller),
-                  ),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
+            // Bottom Input Bar & Voice Recording Bar
+            Obx(
+              () => controller.isRecordingVoiceNote.value
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-                        borderRadius: BorderRadius.circular(24),
+                        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha(isDark ? 40 : 10),
+                            blurRadius: 8,
+                            offset: const Offset(0, -2),
+                          ),
+                        ],
                       ),
-                      child: TextField(
-                        controller: controller.messageInputController,
-                        onChanged: controller.onTextChanged,
-                        textCapitalization: TextCapitalization.sentences,
-                        maxLines: 4,
-                        minLines: 1,
-                        style: const TextStyle(fontSize: 14),
-                        decoration: const InputDecoration(
-                          hintText: 'Type a message...',
-                          border: InputBorder.none,
-                        ),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 26),
+                            onPressed: controller.cancelVoiceRecording,
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.fiber_manual_record_rounded, color: Colors.red, size: 16),
+                          const SizedBox(width: 6),
+                          Obx(
+                            () => Text(
+                              _formatRecordTime(controller.recordingSeconds.value),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red,
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          GestureDetector(
+                            onTap: controller.stopAndSendVoiceNote,
+                            child: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: const BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Center(
+                                child: Icon(
+                                  Icons.send_rounded,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha(isDark ? 40 : 10),
+                            blurRadius: 8,
+                            offset: const Offset(0, -2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.attach_file_rounded, color: AppColors.primary),
+                            onPressed: () => _showAttachmentOptions(context, controller),
+                          ),
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              decoration: BoxDecoration(
+                                color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              child: TextField(
+                                controller: controller.messageInputController,
+                                onChanged: controller.onTextChanged,
+                                textCapitalization: TextCapitalization.sentences,
+                                maxLines: 4,
+                                minLines: 1,
+                                style: const TextStyle(fontSize: 14),
+                                decoration: const InputDecoration(
+                                  hintText: 'Type a message...',
+                                  border: InputBorder.none,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.mic_rounded, color: AppColors.primary),
+                            onPressed: controller.startVoiceRecording,
+                          ),
+                          GestureDetector(
+                            onTap: controller.sendMessage,
+                            child: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: const BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Center(
+                                child: Icon(
+                                  Icons.send_rounded,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: controller.sendMessage,
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: const BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.send_rounded,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
             ),
           ],
         ),
