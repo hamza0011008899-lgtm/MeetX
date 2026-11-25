@@ -60,6 +60,7 @@ class CallService extends GetxService {
 
     _signalingChannel = _client.channel('public:signaling');
 
+    // 1. Incoming Call Invitation
     _signalingChannel?.onBroadcast(
       event: 'call_invite',
       callback: (payload) async {
@@ -77,18 +78,41 @@ class CallService extends GetxService {
       },
     );
 
+    // 2. Call Accepted by Receiver -> Caller creates SDP Offer
+    _signalingChannel?.onBroadcast(
+      event: 'call_accepted',
+      callback: (payload) async {
+        final callerId = payload['caller_id'] as String?;
+        if (callerId == _myUserId && peerConnection != null) {
+          final receiverId = payload['receiver_id'] as String?;
+
+          final offer = await peerConnection!.createOffer();
+          await peerConnection!.setLocalDescription(offer);
+
+          _sendBroadcastSignal(
+            event: 'sdp_offer',
+            payload: {
+              'receiver_id': receiverId,
+              'sdp': offer.sdp,
+              'type': offer.type,
+            },
+          );
+        }
+      },
+    );
+
+    // 3. Receiver receives SDP Offer -> creates SDP Answer
     _signalingChannel?.onBroadcast(
       event: 'sdp_offer',
       callback: (payload) async {
         final receiverId = payload['receiver_id'] as String?;
-        if (receiverId == _myUserId) {
+        if (receiverId == _myUserId && peerConnection != null) {
           final sdp = payload['sdp'] as String?;
           final type = payload['type'] as String?;
-          if (sdp != null && type != null && peerConnection != null) {
+          if (sdp != null && type != null) {
             await peerConnection!.setRemoteDescription(
               RTCSessionDescription(sdp, type),
             );
-            // Create SDP Answer
             final answer = await peerConnection!.createAnswer();
             await peerConnection!.setLocalDescription(answer);
 
@@ -105,14 +129,15 @@ class CallService extends GetxService {
       },
     );
 
+    // 4. Caller receives SDP Answer
     _signalingChannel?.onBroadcast(
       event: 'sdp_answer',
       callback: (payload) async {
         final callerId = payload['caller_id'] as String?;
-        if (callerId == _myUserId) {
+        if (callerId == _myUserId && peerConnection != null) {
           final sdp = payload['sdp'] as String?;
           final type = payload['type'] as String?;
-          if (sdp != null && type != null && peerConnection != null) {
+          if (sdp != null && type != null) {
             await peerConnection!.setRemoteDescription(
               RTCSessionDescription(sdp, type),
             );
@@ -121,13 +146,14 @@ class CallService extends GetxService {
       },
     );
 
+    // 5. ICE Candidate Exchange
     _signalingChannel?.onBroadcast(
       event: 'ice_candidate',
       callback: (payload) async {
         final targetId = payload['target_id'] as String?;
-        if (targetId == _myUserId) {
+        if (targetId == _myUserId && peerConnection != null) {
           final candidate = payload['candidate'] as Map<String, dynamic>?;
-          if (candidate != null && peerConnection != null) {
+          if (candidate != null) {
             await peerConnection!.addCandidate(
               RTCIceCandidate(
                 candidate['candidate'] as String?,
@@ -140,6 +166,7 @@ class CallService extends GetxService {
       },
     );
 
+    // 6. Call Declined
     _signalingChannel?.onBroadcast(
       event: 'call_declined',
       callback: (payload) {
@@ -155,6 +182,7 @@ class CallService extends GetxService {
       },
     );
 
+    // 7. Call Ended
     _signalingChannel?.onBroadcast(
       event: 'call_ended',
       callback: (payload) {
@@ -212,25 +240,23 @@ class CallService extends GetxService {
         'call': call.toJson(),
       },
     );
-
-    // 3. Create SDP Offer
-    final offer = await peerConnection!.createOffer();
-    await peerConnection!.setLocalDescription(offer);
-
-    _sendBroadcastSignal(
-      event: 'sdp_offer',
-      payload: {
-        'receiver_id': targetUser.id,
-        'sdp': offer.sdp,
-        'type': offer.type,
-      },
-    );
   }
 
   /// Accept an incoming call
   Future<void> acceptCall(CallModel call) async {
     currentCall.value = call.copyWith(status: 'accepted');
+
+    // 1. Initialize local media stream & peerConnection
     await initializeMedia(hasVideo: call.hasVideo);
+
+    // 2. Broadcast call_accepted event to Caller
+    _sendBroadcastSignal(
+      event: 'call_accepted',
+      payload: {
+        'caller_id': call.callerId,
+        'receiver_id': _myUserId,
+      },
+    );
   }
 
   /// Decline an incoming call
