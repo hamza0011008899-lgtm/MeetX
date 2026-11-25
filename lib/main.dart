@@ -12,9 +12,9 @@ void main() async {
 
   // Initialize global services in order
   await Get.putAsync(() => SupabaseService().init());
-  await Get.putAsync(() => AuthService().init());
-  Get.put(MediaService());
   Get.put(CallService());
+  Get.put(MediaService());
+  await Get.putAsync(() => AuthService().init());
 
   runApp(const MeetXApp());
 }
