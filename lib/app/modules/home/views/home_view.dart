@@ -36,13 +36,24 @@ class HomeView extends StatelessWidget {
               ),
             ),
           ),
-          title: const Text(
-            'MeetX',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.2,
-              color: Colors.white,
+          title: ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [
+                Colors.white,
+                Color(0xFFE8D5FF),
+                AppColors.accent,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ).createShader(bounds),
+            child: const Text(
+              'MeetX',
+              style: TextStyle(
+                fontSize: 25,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.5,
+                color: Colors.white,
+              ),
             ),
           ),
           actions: [
