@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import '../modules/auth/views/auth_view.dart';
+import '../modules/call/views/incoming_call_view.dart';
 import '../modules/chat/views/chat_view.dart';
 import '../modules/chat/views/group_create_view.dart';
 import '../modules/chat/views/user_search_view.dart';
@@ -37,6 +38,10 @@ class AppPages {
     GetPage(
       name: _Paths.CHAT,
       page: () => const ChatView(),
+    ),
+    GetPage(
+      name: _Paths.INCOMING_CALL,
+      page: () => const IncomingCallView(),
     ),
   ];
 }

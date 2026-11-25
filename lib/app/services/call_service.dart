@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:get/get.dart';
+import 'package:get/get.dart' hide navigator;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/call_model.dart';
 import '../data/models/user_model.dart';
+import '../routes/app_pages.dart';
 import 'supabase_service.dart';
 import 'webrtc_helper.dart';
 
@@ -59,6 +60,9 @@ class CallService extends GetxService {
         if (callData != null) {
           final incoming = CallModel.fromJson(callData);
           currentCall.value = incoming;
+          if (Get.currentRoute != Routes.INCOMING_CALL) {
+            Get.toNamed(Routes.INCOMING_CALL);
+          }
         }
       },
     );

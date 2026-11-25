@@ -12,6 +12,7 @@ abstract class Routes {
   static const GROUP_CREATE = _Paths.GROUP_CREATE;
   static const PROFILE = _Paths.PROFILE;
   static const CALL = _Paths.CALL;
+  static const INCOMING_CALL = _Paths.INCOMING_CALL;
 }
 
 abstract class _Paths {
@@ -25,4 +26,5 @@ abstract class _Paths {
   static const GROUP_CREATE = '/group-create';
   static const PROFILE = '/profile';
   static const CALL = '/call';
+  static const INCOMING_CALL = '/incoming-call';
 }
