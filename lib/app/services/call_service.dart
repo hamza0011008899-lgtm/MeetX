@@ -276,6 +276,9 @@ class CallService extends GetxService {
     try {
       isVideoEnabled.value = hasVideo;
       isMuted.value = false;
+      isSpeakerOn.value = true;
+
+      await Helper.setSpeakerphoneOn(true);
 
       peerConnection = await createPeerConnection(_iceServers);
 
@@ -325,6 +328,17 @@ class CallService extends GetxService {
       };
     } catch (e) {
       debugPrint('DEBUG initializeMedia error: $e');
+    }
+  }
+
+  /// Toggle Speakerphone On / Off
+  Future<void> toggleSpeaker() async {
+    try {
+      final bool nextState = !isSpeakerOn.value;
+      await Helper.setSpeakerphoneOn(nextState);
+      isSpeakerOn.value = nextState;
+    } catch (e) {
+      debugPrint('DEBUG toggleSpeaker error: $e');
     }
   }
 

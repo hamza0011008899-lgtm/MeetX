@@ -207,12 +207,12 @@ class _CallViewState extends State<CallView> {
             // Bottom In-Call Control Toolbar
             Positioned(
               bottom: 40,
-              left: 20,
-              right: 20,
+              left: 16,
+              right: 16,
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
                 decoration: BoxDecoration(
-                  color: Colors.black.withAlpha(120),
+                  color: Colors.black.withAlpha(140),
                   borderRadius: BorderRadius.circular(30),
                   border: Border.all(color: Colors.white.withAlpha(30)),
                   boxShadow: [
@@ -226,10 +226,30 @@ class _CallViewState extends State<CallView> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
+                    // Speakerphone Toggle Button
+                    Obx(
+                      () => CircleAvatar(
+                        radius: 24,
+                        backgroundColor: !_callService.isSpeakerOn.value
+                            ? Colors.redAccent.withAlpha(200)
+                            : Colors.white.withAlpha(40),
+                        child: IconButton(
+                          icon: Icon(
+                            _callService.isSpeakerOn.value
+                                ? Icons.volume_up_rounded
+                                : Icons.volume_off_rounded,
+                            color: Colors.white,
+                            size: 22,
+                          ),
+                          onPressed: _callService.toggleSpeaker,
+                        ),
+                      ),
+                    ),
+
                     // Mic Mute Toggle Button
                     Obx(
                       () => CircleAvatar(
-                        radius: 26,
+                        radius: 24,
                         backgroundColor: _callService.isMuted.value
                             ? Colors.redAccent.withAlpha(200)
                             : Colors.white.withAlpha(40),
@@ -239,7 +259,7 @@ class _CallViewState extends State<CallView> {
                                 ? Icons.mic_off_rounded
                                 : Icons.mic_rounded,
                             color: Colors.white,
-                            size: 24,
+                            size: 22,
                           ),
                           onPressed: _callService.toggleMute,
                         ),
@@ -249,7 +269,7 @@ class _CallViewState extends State<CallView> {
                     // Video Camera Toggle Button
                     Obx(
                       () => CircleAvatar(
-                        radius: 26,
+                        radius: 24,
                         backgroundColor: !_callService.isVideoEnabled.value
                             ? Colors.redAccent.withAlpha(200)
                             : Colors.white.withAlpha(40),
@@ -259,7 +279,7 @@ class _CallViewState extends State<CallView> {
                                 ? Icons.videocam_rounded
                                 : Icons.videocam_off_rounded,
                             color: Colors.white,
-                            size: 24,
+                            size: 22,
                           ),
                           onPressed: _callService.toggleVideo,
                         ),
@@ -268,13 +288,13 @@ class _CallViewState extends State<CallView> {
 
                     // Switch Camera Front / Back Button
                     CircleAvatar(
-                      radius: 26,
+                      radius: 24,
                       backgroundColor: Colors.white.withAlpha(40),
                       child: IconButton(
                         icon: const Icon(
                           Icons.cameraswitch_rounded,
                           color: Colors.white,
-                          size: 24,
+                          size: 22,
                         ),
                         onPressed: _callService.switchCamera,
                       ),
@@ -282,13 +302,13 @@ class _CallViewState extends State<CallView> {
 
                     // End Call Button
                     CircleAvatar(
-                      radius: 28,
+                      radius: 26,
                       backgroundColor: Colors.redAccent,
                       child: IconButton(
                         icon: const Icon(
                           Icons.call_end_rounded,
                           color: Colors.white,
-                          size: 26,
+                          size: 24,
                         ),
                         onPressed: () {
                           _callService.endCall();
