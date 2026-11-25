@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/user_model.dart';
 import '../data/repositories/auth_repository.dart';
 import '../routes/app_pages.dart';
+import 'call_service.dart';
 
 class AuthService extends GetxService with WidgetsBindingObserver {
   final AuthRepository _authRepository = AuthRepository();
@@ -58,6 +59,9 @@ class AuthService extends GetxService with WidgetsBindingObserver {
     if (_authRepository.isAuthenticated) {
       final profile = await _authRepository.getCurrentProfile();
       currentUser.value = profile;
+      if (profile != null) {
+        Get.find<CallService>().listenForIncomingCalls(profile.id);
+      }
     } else {
       currentUser.value = null;
     }
@@ -71,6 +75,9 @@ class AuthService extends GetxService with WidgetsBindingObserver {
       if (event == AuthChangeEvent.signedIn) {
         final profile = await _authRepository.getCurrentProfile();
         currentUser.value = profile;
+        if (profile != null) {
+          Get.find<CallService>().listenForIncomingCalls(profile.id);
+        }
         updateOnlineStatus(true);
         if (Get.currentRoute != Routes.HOME) {
           Get.offAllNamed(Routes.HOME);
