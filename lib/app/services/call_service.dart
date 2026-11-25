@@ -30,6 +30,7 @@ class CallService extends GetxService {
   RealtimeChannel? _signalingChannel;
   String _myUserId = '';
   DateTime? _callStartTime;
+  Timer? _ringingTimeoutTimer;
 
   static const Map<String, dynamic> _iceServers = {
     'iceServers': [
@@ -87,6 +88,7 @@ class CallService extends GetxService {
       callback: (payload) async {
         final callerId = payload['caller_id'] as String?;
         if (callerId == _myUserId && peerConnection != null) {
+          _ringingTimeoutTimer?.cancel();
           _callStartTime = DateTime.now();
           final receiverId = payload['receiver_id'] as String?;
 
@@ -111,6 +113,7 @@ class CallService extends GetxService {
       callback: (payload) async {
         final receiverId = payload['receiver_id'] as String?;
         if (receiverId == _myUserId && peerConnection != null) {
+          _ringingTimeoutTimer?.cancel();
           _callStartTime = DateTime.now();
           final sdp = payload['sdp'] as String?;
           final type = payload['type'] as String?;
@@ -177,6 +180,7 @@ class CallService extends GetxService {
       callback: (payload) {
         final targetId = payload['target_id'] as String?;
         if (targetId == _myUserId) {
+          _ringingTimeoutTimer?.cancel();
           _logCallInChat(isMissed: true);
           endCall();
           Get.snackbar(
@@ -194,6 +198,7 @@ class CallService extends GetxService {
       callback: (payload) {
         final targetId = payload['target_id'] as String?;
         if (targetId == _myUserId) {
+          _ringingTimeoutTimer?.cancel();
           _logCallInChat(isMissed: false);
           endCall();
         }
@@ -281,10 +286,26 @@ class CallService extends GetxService {
         'call': call.toJson(),
       },
     );
+
+    // 3. Start 30-Second Ringing Timeout Timer
+    _ringingTimeoutTimer?.cancel();
+    _ringingTimeoutTimer = Timer(const Duration(seconds: 30), () {
+      if (currentCall.value != null && _callStartTime == null) {
+        debugPrint('DEBUG Ringing timeout - no answer after 30 seconds');
+        Get.snackbar(
+          'No Answer',
+          'User did not answer the call.',
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 3),
+        );
+        declineCall(call);
+      }
+    });
   }
 
   /// Accept an incoming call
   Future<void> acceptCall(CallModel call) async {
+    _ringingTimeoutTimer?.cancel();
     _callStartTime = DateTime.now();
     currentCall.value = call.copyWith(status: 'accepted');
 
@@ -303,6 +324,7 @@ class CallService extends GetxService {
 
   /// Decline an incoming call
   void declineCall(CallModel call) {
+    _ringingTimeoutTimer?.cancel();
     _sendBroadcastSignal(
       event: 'call_declined',
       payload: {
@@ -423,6 +445,7 @@ class CallService extends GetxService {
   /// End and clean up active call
   Future<void> endCall() async {
     try {
+      _ringingTimeoutTimer?.cancel();
       _logCallInChat(isMissed: _callStartTime == null);
 
       final targetId = currentCall.value?.callerId == _client.auth.currentUser?.id
@@ -455,6 +478,7 @@ class CallService extends GetxService {
 
   @override
   void onClose() {
+    _ringingTimeoutTimer?.cancel();
     endCall();
     localRenderer.dispose();
     remoteRenderer.dispose();
