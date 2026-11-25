@@ -1,6 +1,9 @@
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../routes/app_pages.dart';
+import '../../../services/auth_service.dart';
+import '../../../services/call_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../widgets/voice_note_player.dart';
 import '../controllers/chat_controller.dart';
@@ -230,21 +233,47 @@ class ChatView extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.call_outlined),
             onPressed: () {
-              Get.snackbar(
-                'MeetX Call',
-                'Peer-to-Peer Voice Calling will be activated in Phase 6!',
-                snackPosition: SnackPosition.BOTTOM,
-              );
+              if (controller.targetUser == null) {
+                Get.snackbar(
+                  'Group Call',
+                  'Group Voice Calling will be activated in Step 5!',
+                  snackPosition: SnackPosition.BOTTOM,
+                );
+                return;
+              }
+              final callService = Get.find<CallService>();
+              final authService = Get.find<AuthService>();
+              if (authService.currentUser.value != null) {
+                callService.startOutboundCall(
+                  targetUser: controller.targetUser!,
+                  currentUser: authService.currentUser.value!,
+                  hasVideo: false,
+                );
+                Get.toNamed(Routes.CALL);
+              }
             },
           ),
           IconButton(
             icon: const Icon(Icons.videocam_outlined),
             onPressed: () {
-              Get.snackbar(
-                'MeetX Video',
-                'Peer-to-Peer Video Calling will be activated in Phase 6!',
-                snackPosition: SnackPosition.BOTTOM,
-              );
+              if (controller.targetUser == null) {
+                Get.snackbar(
+                  'Group Call',
+                  'Group Video Calling will be activated in Step 5!',
+                  snackPosition: SnackPosition.BOTTOM,
+                );
+                return;
+              }
+              final callService = Get.find<CallService>();
+              final authService = Get.find<AuthService>();
+              if (authService.currentUser.value != null) {
+                callService.startOutboundCall(
+                  targetUser: controller.targetUser!,
+                  currentUser: authService.currentUser.value!,
+                  hasVideo: true,
+                );
+                Get.toNamed(Routes.CALL);
+              }
             },
           ),
         ],
