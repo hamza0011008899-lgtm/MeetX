@@ -63,7 +63,7 @@ class ChatRepository {
     if (uid == null) throw Exception('User not authenticated');
 
     try {
-      // 1. Check if a private chat already exists between these two users
+      // 1. Fetch all chat_ids for current user
       final myChatsResponse = await _client
           .from('chat_participants')
           .select('chat_id')
@@ -74,19 +74,34 @@ class ChatRepository {
           .toList();
 
       if (myChatIds.isNotEmpty) {
+        // 2. Fetch all shared chats where otherUserId is also a participant
         final sharedChatResponse = await _client
             .from('chat_participants')
             .select('chat_id')
             .eq('user_id', otherUserId)
-            .filter('chat_id', 'in', myChatIds)
-            .maybeSingle();
+            .filter('chat_id', 'in', myChatIds);
 
-        if (sharedChatResponse != null) {
-          return sharedChatResponse['chat_id'] as String;
+        final sharedChatIds = (sharedChatResponse as List)
+            .map((e) => e['chat_id'] as String)
+            .toList();
+
+        if (sharedChatIds.isNotEmpty) {
+          // Find the non-group private chat among shared chats
+          for (final cId in sharedChatIds) {
+            final chatData = await _client
+                .from('chats')
+                .select('is_group')
+                .eq('id', cId)
+                .maybeSingle();
+
+            if (chatData != null && chatData['is_group'] == false) {
+              return cId;
+            }
+          }
         }
       }
 
-      // 2. If no chat exists, create a new chat entry
+      // 3. If no 1-on-1 private chat exists, create a new chat entry
       final newChatResponse = await _client
           .from('chats')
           .insert({'is_group': false})
@@ -95,7 +110,7 @@ class ChatRepository {
 
       final newChatId = newChatResponse['id'] as String;
 
-      // 3. Add both users to chat_participants
+      // 4. Add both users to chat_participants
       await _client.from('chat_participants').insert([
         {'chat_id': newChatId, 'user_id': uid},
         {'chat_id': newChatId, 'user_id': otherUserId},
