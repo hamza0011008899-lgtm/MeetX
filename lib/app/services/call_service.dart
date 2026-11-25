@@ -5,6 +5,7 @@ import 'package:get/get.dart' hide navigator;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/call_model.dart';
 import '../data/models/user_model.dart';
+import '../routes/app_pages.dart';
 import 'supabase_service.dart';
 import 'webrtc_helper.dart';
 
@@ -25,6 +26,7 @@ class CallService extends GetxService {
 
   final Rx<CallModel?> currentCall = Rx<CallModel?>(null);
   RealtimeChannel? _signalingChannel;
+  String _myUserId = '';
 
   static const Map<String, dynamic> _iceServers = {
     'iceServers': [
@@ -49,20 +51,28 @@ class CallService extends GetxService {
     }
   }
 
-  /// Listen for incoming calls on user's dedicated broadcast channel
+  /// Listen for incoming calls on global signaling channel
   void listenForIncomingCalls(String myUserId) {
     if (myUserId.isEmpty) return;
+    _myUserId = myUserId;
 
-    _signalingChannel?.unsubscribe();
-    _signalingChannel = _client.channel('calls:$myUserId');
+    if (_signalingChannel != null) return;
+
+    _signalingChannel = _client.channel('public:signaling');
 
     _signalingChannel?.onBroadcast(
       event: 'call_invite',
       callback: (payload) async {
-        final callData = payload['call'] as Map<String, dynamic>?;
-        if (callData != null) {
-          final incoming = CallModel.fromJson(callData);
-          currentCall.value = incoming;
+        final receiverId = payload['receiver_id'] as String?;
+        if (receiverId == _myUserId) {
+          final callData = payload['call'] as Map<String, dynamic>?;
+          if (callData != null) {
+            final incoming = CallModel.fromJson(callData);
+            currentCall.value = incoming;
+            if (Get.currentRoute != Routes.INCOMING_CALL) {
+              Get.toNamed(Routes.INCOMING_CALL);
+            }
+          }
         }
       },
     );
@@ -70,24 +80,27 @@ class CallService extends GetxService {
     _signalingChannel?.onBroadcast(
       event: 'sdp_offer',
       callback: (payload) async {
-        final sdp = payload['sdp'] as String?;
-        final type = payload['type'] as String?;
-        if (sdp != null && type != null && peerConnection != null) {
-          await peerConnection!.setRemoteDescription(
-            RTCSessionDescription(sdp, type),
-          );
-          // Create SDP Answer
-          final answer = await peerConnection!.createAnswer();
-          await peerConnection!.setLocalDescription(answer);
+        final receiverId = payload['receiver_id'] as String?;
+        if (receiverId == _myUserId) {
+          final sdp = payload['sdp'] as String?;
+          final type = payload['type'] as String?;
+          if (sdp != null && type != null && peerConnection != null) {
+            await peerConnection!.setRemoteDescription(
+              RTCSessionDescription(sdp, type),
+            );
+            // Create SDP Answer
+            final answer = await peerConnection!.createAnswer();
+            await peerConnection!.setLocalDescription(answer);
 
-          _sendBroadcastSignal(
-            targetUserId: currentCall.value?.callerId ?? '',
-            event: 'sdp_answer',
-            payload: {
-              'sdp': answer.sdp,
-              'type': answer.type,
-            },
-          );
+            _sendBroadcastSignal(
+              event: 'sdp_answer',
+              payload: {
+                'caller_id': currentCall.value?.callerId,
+                'sdp': answer.sdp,
+                'type': answer.type,
+              },
+            );
+          }
         }
       },
     );
@@ -95,12 +108,15 @@ class CallService extends GetxService {
     _signalingChannel?.onBroadcast(
       event: 'sdp_answer',
       callback: (payload) async {
-        final sdp = payload['sdp'] as String?;
-        final type = payload['type'] as String?;
-        if (sdp != null && type != null && peerConnection != null) {
-          await peerConnection!.setRemoteDescription(
-            RTCSessionDescription(sdp, type),
-          );
+        final callerId = payload['caller_id'] as String?;
+        if (callerId == _myUserId) {
+          final sdp = payload['sdp'] as String?;
+          final type = payload['type'] as String?;
+          if (sdp != null && type != null && peerConnection != null) {
+            await peerConnection!.setRemoteDescription(
+              RTCSessionDescription(sdp, type),
+            );
+          }
         }
       },
     );
@@ -108,31 +124,44 @@ class CallService extends GetxService {
     _signalingChannel?.onBroadcast(
       event: 'ice_candidate',
       callback: (payload) async {
-        final candidate = payload['candidate'] as Map<String, dynamic>?;
-        if (candidate != null && peerConnection != null) {
-          await peerConnection!.addCandidate(
-            RTCIceCandidate(
-              candidate['candidate'] as String?,
-              candidate['sdpMid'] as String?,
-              candidate['sdpMLineIndex'] as int?,
-            ),
-          );
+        final targetId = payload['target_id'] as String?;
+        if (targetId == _myUserId) {
+          final candidate = payload['candidate'] as Map<String, dynamic>?;
+          if (candidate != null && peerConnection != null) {
+            await peerConnection!.addCandidate(
+              RTCIceCandidate(
+                candidate['candidate'] as String?,
+                candidate['sdpMid'] as String?,
+                candidate['sdpMLineIndex'] as int?,
+              ),
+            );
+          }
         }
       },
     );
 
     _signalingChannel?.onBroadcast(
       event: 'call_declined',
-      callback: (_) {
-        endCall();
-        debugPrint('DEBUG Call declined by remote user');
+      callback: (payload) {
+        final targetId = payload['target_id'] as String?;
+        if (targetId == _myUserId) {
+          endCall();
+          Get.snackbar(
+            'Call Declined',
+            'User declined the call.',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        }
       },
     );
 
     _signalingChannel?.onBroadcast(
       event: 'call_ended',
-      callback: (_) {
-        endCall();
+      callback: (payload) {
+        final targetId = payload['target_id'] as String?;
+        if (targetId == _myUserId) {
+          endCall();
+        }
       },
     );
 
@@ -141,19 +170,15 @@ class CallService extends GetxService {
 
   /// Send broadcast signal helper
   void _sendBroadcastSignal({
-    required String targetUserId,
     required String event,
     required Map<String, dynamic> payload,
   }) {
-    final targetChannel = _client.channel('calls:$targetUserId');
-    targetChannel.subscribe((status, error) {
-      if (status == RealtimeSubscribeStatus.subscribed) {
-        targetChannel.sendBroadcastMessage(
-          event: event,
-          payload: payload,
-        );
-      }
-    });
+    if (_signalingChannel != null) {
+      _signalingChannel!.sendBroadcastMessage(
+        event: event,
+        payload: payload,
+      );
+    }
   }
 
   /// Start outbound call to target user
@@ -181,9 +206,11 @@ class CallService extends GetxService {
 
     // 2. Broadcast call invitation to target user
     _sendBroadcastSignal(
-      targetUserId: targetUser.id,
       event: 'call_invite',
-      payload: {'call': call.toJson()},
+      payload: {
+        'receiver_id': targetUser.id,
+        'call': call.toJson(),
+      },
     );
 
     // 3. Create SDP Offer
@@ -191,9 +218,9 @@ class CallService extends GetxService {
     await peerConnection!.setLocalDescription(offer);
 
     _sendBroadcastSignal(
-      targetUserId: targetUser.id,
       event: 'sdp_offer',
       payload: {
+        'receiver_id': targetUser.id,
         'sdp': offer.sdp,
         'type': offer.type,
       },
@@ -209,9 +236,11 @@ class CallService extends GetxService {
   /// Decline an incoming call
   void declineCall(CallModel call) {
     _sendBroadcastSignal(
-      targetUserId: call.callerId,
       event: 'call_declined',
-      payload: {'callId': call.id},
+      payload: {
+        'target_id': call.callerId,
+        'callId': call.id,
+      },
     );
     endCall();
   }
@@ -231,9 +260,11 @@ class CallService extends GetxService {
 
         if (targetId != null) {
           _sendBroadcastSignal(
-            targetUserId: targetId,
             event: 'ice_candidate',
-            payload: {'candidate': candidate.toMap()},
+            payload: {
+              'target_id': targetId,
+              'candidate': candidate.toMap(),
+            },
           );
         }
       };
@@ -315,9 +346,11 @@ class CallService extends GetxService {
 
       if (targetId != null) {
         _sendBroadcastSignal(
-          targetUserId: targetId,
           event: 'call_ended',
-          payload: {'callId': currentCall.value?.id},
+          payload: {
+            'target_id': targetId,
+            'callId': currentCall.value?.id,
+          },
         );
       }
 
