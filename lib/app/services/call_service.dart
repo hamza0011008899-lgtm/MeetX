@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/call_model.dart';
 import '../data/models/user_model.dart';
 import '../data/repositories/chat_repository.dart';
+import '../modules/home/controllers/home_controller.dart';
 import '../routes/app_pages.dart';
 import 'supabase_service.dart';
 import 'webrtc_helper.dart';
@@ -177,12 +178,11 @@ class CallService extends GetxService {
     // 6. Call Declined
     _signalingChannel?.onBroadcast(
       event: 'call_declined',
-      callback: (payload) {
+      callback: (payload) async {
         final targetId = payload['target_id'] as String?;
         if (targetId == _myUserId) {
           _ringingTimeoutTimer?.cancel();
-          _logCallInChat(isMissed: true);
-          endCall();
+          await endCall(isMissedOverride: true);
           Get.snackbar(
             'Call Declined',
             'User declined the call.',
@@ -195,12 +195,11 @@ class CallService extends GetxService {
     // 7. Call Ended
     _signalingChannel?.onBroadcast(
       event: 'call_ended',
-      callback: (payload) {
+      callback: (payload) async {
         final targetId = payload['target_id'] as String?;
         if (targetId == _myUserId) {
           _ringingTimeoutTimer?.cancel();
-          _logCallInChat(isMissed: false);
-          endCall();
+          await endCall();
         }
       },
     );
@@ -209,26 +208,21 @@ class CallService extends GetxService {
   }
 
   /// Log call activity to chat database
-  Future<void> _logCallInChat({required bool isMissed}) async {
-    final call = currentCall.value;
-    if (call == null) return;
-
+  Future<void> _logCallInChat(CallModel call, {required bool isMissed}) async {
     try {
       final targetUserId = call.callerId == _myUserId ? call.receiverId : call.callerId;
       final chatId = await _chatRepository.getOrCreateSingleChat(targetUserId);
 
       String content;
-      if (isMissed) {
+      if (isMissed || _callStartTime == null) {
         content = call.hasVideo ? '📹 Missed video call' : '📞 Missed voice call';
-      } else if (_callStartTime != null) {
+      } else {
         final durationSeconds = DateTime.now().difference(_callStartTime!).inSeconds;
         final mins = (durationSeconds ~/ 60).toString().padLeft(2, '0');
         final secs = (durationSeconds % 60).toString().padLeft(2, '0');
         content = call.hasVideo
             ? '📹 Video call ($mins:$secs)'
             : '📞 Voice call ($mins:$secs)';
-      } else {
-        content = call.hasVideo ? '📹 Missed video call' : '📞 Missed voice call';
       }
 
       await _chatRepository.sendMessage(
@@ -236,6 +230,7 @@ class CallService extends GetxService {
         content: content,
         type: 'call',
       );
+      debugPrint('DEBUG _logCallInChat SUCCESS content: $content');
     } catch (e) {
       debugPrint('DEBUG _logCallInChat error: $e');
     }
@@ -323,7 +318,7 @@ class CallService extends GetxService {
   }
 
   /// Decline an incoming call
-  void declineCall(CallModel call) {
+  void declineCall(CallModel call) async {
     _ringingTimeoutTimer?.cancel();
     _sendBroadcastSignal(
       event: 'call_declined',
@@ -332,8 +327,7 @@ class CallService extends GetxService {
         'callId': call.id,
       },
     );
-    _logCallInChat(isMissed: true);
-    endCall();
+    await endCall(isMissedOverride: true);
   }
 
   /// Initialize WebRTC Media Streams & PeerConnection
@@ -443,21 +437,21 @@ class CallService extends GetxService {
   }
 
   /// End and clean up active call
-  Future<void> endCall() async {
+  Future<void> endCall({bool isMissedOverride = false}) async {
     try {
       _ringingTimeoutTimer?.cancel();
-      _logCallInChat(isMissed: _callStartTime == null);
 
-      final targetId = currentCall.value?.callerId == _client.auth.currentUser?.id
-          ? currentCall.value?.receiverId
-          : currentCall.value?.callerId;
+      final call = currentCall.value;
+      if (call != null) {
+        final isMissed = isMissedOverride || _callStartTime == null;
+        await _logCallInChat(call, isMissed: isMissed);
 
-      if (targetId != null) {
+        final targetId = call.callerId == _myUserId ? call.receiverId : call.callerId;
         _sendBroadcastSignal(
           event: 'call_ended',
           payload: {
             'target_id': targetId,
-            'callId': currentCall.value?.id,
+            'callId': call.id,
           },
         );
       }
@@ -471,6 +465,13 @@ class CallService extends GetxService {
       remoteRenderer.srcObject = null;
       currentCall.value = null;
       _callStartTime = null;
+
+      // Refresh Home View Chats and Calls Tabs
+      if (Get.isRegistered<HomeController>()) {
+        final homeController = Get.find<HomeController>();
+        homeController.loadCallHistory();
+        homeController.loadUserChats();
+      }
     } catch (e) {
       debugPrint('DEBUG endCall error: $e');
     }
