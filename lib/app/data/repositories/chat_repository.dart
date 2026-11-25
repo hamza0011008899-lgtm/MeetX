@@ -249,6 +249,49 @@ class ChatRepository {
     }
   }
 
+  /// Fetch recent call logs for Calls tab
+  Future<List<MessageModel>> getCallHistory() async {
+    final uid = currentUserId;
+    if (uid == null) return [];
+
+    try {
+      final myChatsResponse = await _client
+          .from('chat_participants')
+          .select('chat_id')
+          .eq('user_id', uid);
+
+      final chatIds = (myChatsResponse as List)
+          .map((e) => e['chat_id'] as String)
+          .toList();
+
+      if (chatIds.isEmpty) return [];
+
+      final response = await _client
+          .from('messages')
+          .select()
+          .filter('chat_id', 'in', chatIds)
+          .eq('type', 'call')
+          .order('created_at', ascending: false)
+          .limit(50);
+
+      final List<MessageModel> calls = [];
+      for (final json in response as List) {
+        final senderId = json['sender_id'] as String;
+        final senderProfile = await getProfileById(senderId);
+        calls.add(
+          MessageModel.fromJson({
+            ...json,
+            'profiles': senderProfile?.toJson(),
+          }),
+        );
+      }
+      return calls;
+    } catch (e) {
+      debugPrint('DEBUG getCallHistory error: $e');
+      return [];
+    }
+  }
+
   /// Send a message in a chat room
   Future<MessageModel> sendMessage({
     required String chatId,

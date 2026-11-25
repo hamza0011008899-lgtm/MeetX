@@ -151,7 +151,7 @@ class HomeView extends StatelessWidget {
             _buildStatusTab(context, isDark),
 
             // TAB 3: Calls
-            _buildCallsTab(context, isDark),
+            _buildCallsTab(context, controller, isDark),
           ],
         ),
         floatingActionButton: FloatingActionButton.extended(
@@ -467,42 +467,135 @@ class HomeView extends StatelessWidget {
     );
   }
 
-  Widget _buildCallsTab(BuildContext context, bool isDark) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withAlpha(20),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.add_call,
-              size: 56,
-              color: AppColors.primary,
-            ),
+  Widget _buildCallsTab(BuildContext context, HomeController controller, bool isDark) {
+    return Obx(() {
+      if (controller.callHistory.isEmpty) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withAlpha(20),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.add_call,
+                  size: 56,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'No Recent Calls',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Voice and Video call history will appear here',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
-          Text(
-            'No Recent Calls',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Voice and Video call history will appear here',
-            style: TextStyle(
-              fontSize: 14,
-              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-            ),
-          ),
-        ],
-      ),
-    );
+        );
+      }
+
+      return RefreshIndicator(
+        onRefresh: controller.loadCallHistory,
+        color: AppColors.primary,
+        child: ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          itemCount: controller.callHistory.length,
+          itemBuilder: (context, index) {
+            final callMsg = controller.callHistory[index];
+            final isMe = callMsg.senderId == controller.currentUserId;
+            final isMissed = (callMsg.content ?? '').contains('Missed');
+            final name = callMsg.sender?.displayName ?? callMsg.sender?.username ?? 'Contact';
+            final avatar = callMsg.sender?.avatarUrl;
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(isDark ? 40 : 8),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                leading: CircleAvatar(
+                  radius: 24,
+                  backgroundColor: AppColors.primary.withAlpha(40),
+                  backgroundImage: avatar != null ? NetworkImage(avatar) : null,
+                  child: avatar == null
+                      ? Text(
+                          (name.isNotEmpty ? name[0] : 'C').toUpperCase(),
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        )
+                      : null,
+                ),
+                title: Text(
+                  name,
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5),
+                ),
+                subtitle: Row(
+                  children: [
+                    Icon(
+                      isMe
+                          ? Icons.call_made_rounded
+                          : (isMissed ? Icons.call_missed_rounded : Icons.call_received_rounded),
+                      size: 16,
+                      color: isMissed ? Colors.redAccent : Colors.green,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      callMsg.content ?? 'Call',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: isMissed ? FontWeight.bold : FontWeight.normal,
+                        color: isMissed
+                            ? Colors.redAccent
+                            : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                      ),
+                    ),
+                  ],
+                ),
+                trailing: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (callMsg.createdAt != null)
+                      Text(
+                        '${callMsg.createdAt!.hour.toString().padLeft(2, '0')}:${callMsg.createdAt!.minute.toString().padLeft(2, '0')}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    });
   }
 }
