@@ -210,7 +210,19 @@ class CallService extends GetxService {
   /// Log call activity to chat database
   Future<void> _logCallInChat(CallModel call, {required bool isMissed}) async {
     try {
-      final targetUserId = call.callerId == _myUserId ? call.receiverId : call.callerId;
+      final currentUid = _client.auth.currentUser?.id ?? _myUserId;
+      if (currentUid.isEmpty) {
+        debugPrint('DEBUG _logCallInChat skipped: currentUid is empty');
+        return;
+      }
+
+      final targetUserId = call.callerId == currentUid ? call.receiverId : call.callerId;
+      if (targetUserId.isEmpty || targetUserId == currentUid) {
+        debugPrint('DEBUG _logCallInChat skipped: invalid targetUserId $targetUserId');
+        return;
+      }
+
+      debugPrint('DEBUG _logCallInChat starting for target: $targetUserId');
       final chatId = await _chatRepository.getOrCreateSingleChat(targetUserId);
 
       String content;
@@ -225,14 +237,14 @@ class CallService extends GetxService {
             : '📞 Voice call ($mins:$secs)';
       }
 
-      await _chatRepository.sendMessage(
+      final msg = await _chatRepository.sendMessage(
         chatId: chatId,
         content: content,
         type: 'call',
       );
-      debugPrint('DEBUG _logCallInChat SUCCESS content: $content');
-    } catch (e) {
-      debugPrint('DEBUG _logCallInChat error: $e');
+      debugPrint('DEBUG _logCallInChat SUCCESS msgId: ${msg.id}, content: $content');
+    } catch (e, stack) {
+      debugPrint('DEBUG _logCallInChat EXCEPTION: $e\n$stack');
     }
   }
 
@@ -256,6 +268,8 @@ class CallService extends GetxService {
     required bool hasVideo,
   }) async {
     _callStartTime = null;
+    _myUserId = currentUser.id;
+
     final callId = 'call_${DateTime.now().millisecondsSinceEpoch}';
     final call = CallModel(
       id: callId,
