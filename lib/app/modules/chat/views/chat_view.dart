@@ -8,6 +8,21 @@ import '../controllers/chat_controller.dart';
 class ChatView extends StatelessWidget {
   const ChatView({super.key});
 
+  Color _getMemberColor(String senderId) {
+    const colors = [
+      Color(0xFFE84393),
+      Color(0xFF00CEC9),
+      Color(0xFFFF7675),
+      Color(0xFF6C5CE7),
+      Color(0xFF00B894),
+      Color(0xFFFDCB6E),
+      Color(0xFF0984E3),
+      Color(0xFFE17055),
+    ];
+    final hash = senderId.hashCode.abs();
+    return colors[hash % colors.length];
+  }
+
   void _showAttachmentOptions(BuildContext context, ChatController controller) {
     Get.bottomSheet(
       Container(
@@ -296,7 +311,7 @@ class ChatView extends StatelessWidget {
 
                 return ListView.builder(
                   controller: controller.scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   itemCount: controller.messages.length,
                   itemBuilder: (context, index) {
                     final message = controller.messages[index];
@@ -304,6 +319,7 @@ class ChatView extends StatelessWidget {
                     final isImage = message.type == 'image' && message.mediaUrl != null;
                     final isAudio = message.type == 'audio' && message.mediaUrl != null;
                     final senderName = message.sender?.displayName ?? message.sender?.username;
+                    final memberColor = _getMemberColor(message.senderId);
 
                     return Align(
                       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -311,13 +327,13 @@ class ChatView extends StatelessWidget {
                         onLongPress: () => _showMessageOptions(context, controller, message, isMe),
                         onTap: isImage ? () => _openFullScreenImage(message.mediaUrl!) : null,
                         child: Container(
-                          margin: const EdgeInsets.only(bottom: 8),
+                          margin: const EdgeInsets.only(bottom: 6),
                           constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.78,
+                            maxWidth: MediaQuery.of(context).size.width * 0.75,
                           ),
                           padding: isImage
                               ? const EdgeInsets.all(4)
-                              : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              : const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
                             color: isMe
                                 ? AppColors.primary
@@ -325,100 +341,103 @@ class ChatView extends StatelessWidget {
                                     ? AppColors.darkChatBubbleReceiver
                                     : AppColors.lightChatBubbleReceiver),
                             borderRadius: BorderRadius.only(
-                              topLeft: const Radius.circular(16),
-                              topRight: const Radius.circular(16),
-                              bottomLeft: isMe ? const Radius.circular(16) : const Radius.circular(4),
-                              bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(16),
+                              topLeft: const Radius.circular(14),
+                              topRight: const Radius.circular(14),
+                              bottomLeft: isMe ? const Radius.circular(14) : const Radius.circular(2),
+                              bottomRight: isMe ? const Radius.circular(2) : const Radius.circular(14),
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withAlpha(isDark ? 30 : 8),
+                                color: Colors.black.withAlpha(isDark ? 30 : 6),
                                 blurRadius: 4,
                                 offset: const Offset(0, 2),
                               ),
                             ],
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Display Sender Name for Incoming Messages
-                              if (!isMe && senderName != null && senderName.isNotEmpty) ...[
-                                Text(
-                                  senderName,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                              ],
-
-                              if (isImage) ...[
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.network(
-                                    message.mediaUrl!,
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                    height: 180,
-                                    loadingBuilder: (context, child, progress) {
-                                      if (progress == null) return child;
-                                      return const SizedBox(
-                                        height: 180,
-                                        child: Center(
-                                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                              ] else if (isAudio) ...[
-                                VoiceNotePlayer(audioUrl: message.mediaUrl!, isMe: isMe),
-                                const SizedBox(height: 4),
-                              ] else ...[
-                                Text(
-                                  message.content ?? '',
-                                  style: TextStyle(
-                                    fontSize: 14.5,
-                                    color: isMe
-                                        ? Colors.white
-                                        : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                              ],
-
-                              Align(
-                                alignment: Alignment.bottomRight,
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      message.createdAt != null
-                                          ? '${message.createdAt!.hour.toString().padLeft(2, '0')}:${message.createdAt!.minute.toString().padLeft(2, '0')}'
-                                          : '',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: isMe
-                                            ? Colors.white.withAlpha(180)
-                                            : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                                      ),
+                          child: IntrinsicWidth(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Show Sender Name ONLY in Group Chats for incoming messages (!isMe)
+                                if (controller.isGroup && !isMe && senderName != null && senderName.isNotEmpty) ...[
+                                  Text(
+                                    senderName,
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: memberColor,
                                     ),
-                                    if (isMe) ...[
-                                      const SizedBox(width: 4),
-                                      Icon(
-                                        message.isRead ? Icons.done_all_rounded : Icons.done_rounded,
-                                        size: 14,
-                                        color: message.isRead ? AppColors.tickBlue : Colors.white.withAlpha(180),
+                                  ),
+                                  const SizedBox(height: 2),
+                                ],
+
+                                if (isImage) ...[
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.network(
+                                      message.mediaUrl!,
+                                      fit: BoxFit.cover,
+                                      width: 220,
+                                      height: 180,
+                                      loadingBuilder: (context, child, progress) {
+                                        if (progress == null) return child;
+                                        return const SizedBox(
+                                          width: 220,
+                                          height: 180,
+                                          child: Center(
+                                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                ] else if (isAudio) ...[
+                                  VoiceNotePlayer(audioUrl: message.mediaUrl!, isMe: isMe),
+                                  const SizedBox(height: 2),
+                                ] else ...[
+                                  Text(
+                                    message.content ?? '',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: isMe
+                                          ? Colors.white
+                                          : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                ],
+
+                                Align(
+                                  alignment: Alignment.bottomRight,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        message.createdAt != null
+                                            ? '${message.createdAt!.hour.toString().padLeft(2, '0')}:${message.createdAt!.minute.toString().padLeft(2, '0')}'
+                                            : '',
+                                        style: TextStyle(
+                                          fontSize: 9.5,
+                                          color: isMe
+                                              ? Colors.white.withAlpha(180)
+                                              : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                                        ),
                                       ),
+                                      if (isMe) ...[
+                                        const SizedBox(width: 4),
+                                        Icon(
+                                          message.isRead ? Icons.done_all_rounded : Icons.done_rounded,
+                                          size: 13,
+                                          color: message.isRead ? AppColors.tickBlue : Colors.white.withAlpha(180),
+                                        ),
+                                      ],
                                     ],
-                                  ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
