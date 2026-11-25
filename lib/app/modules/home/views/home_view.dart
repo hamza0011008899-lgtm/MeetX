@@ -261,6 +261,7 @@ class HomeView extends StatelessWidget {
                       arguments: {
                         'chatId': chat.id,
                         'targetUser': partner,
+                        'chat': chat,
                       },
                     )?.then((_) => controller.loadUserChats());
                   },

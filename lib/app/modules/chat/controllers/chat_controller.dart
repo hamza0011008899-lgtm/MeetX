@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../data/models/chat_model.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/repositories/chat_repository.dart';
@@ -20,6 +21,9 @@ class ChatController extends GetxController {
 
   late final String chatId;
   late final UserModel? targetUser;
+  late final ChatModel? chat;
+  late final bool isGroup;
+  late final String title;
 
   final RxList<MessageModel> messages = <MessageModel>[].obs;
   final RxBool isLoading = true.obs;
@@ -45,6 +49,17 @@ class ChatController extends GetxController {
     final args = Get.arguments as Map<String, dynamic>? ?? {};
     chatId = args['chatId'] as String? ?? '';
     targetUser = args['targetUser'] as UserModel?;
+    chat = args['chat'] as ChatModel?;
+
+    isGroup = chat?.isGroup ?? (targetUser == null);
+
+    if (chat != null) {
+      title = chat!.getChatTitle(currentUserId);
+    } else if (targetUser != null) {
+      title = targetUser!.displayName ?? targetUser!.username;
+    } else {
+      title = args['chatTitle'] as String? ?? 'Group Chat';
+    }
 
     if (chatId.isNotEmpty) {
       _loadChatHistory();
@@ -201,7 +216,7 @@ class ChatController extends GetxController {
       }
     } catch (e) {
       Get.snackbar(
-        'Upload Error',
+        'Storage Error',
         e.toString(),
         snackPosition: SnackPosition.BOTTOM,
         duration: const Duration(seconds: 4),

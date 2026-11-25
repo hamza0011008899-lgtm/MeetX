@@ -87,6 +87,7 @@ class GroupCreateController extends GetxController {
         arguments: {
           'chatId': chatId,
           'targetUser': null,
+          'chatTitle': name,
         },
       );
     } catch (e) {

@@ -162,19 +162,21 @@ class ChatView extends StatelessWidget {
             CircleAvatar(
               radius: 18,
               backgroundColor: AppColors.primary.withAlpha(40),
-              backgroundImage: controller.targetUser?.avatarUrl != null
+              backgroundImage: !controller.isGroup && controller.targetUser?.avatarUrl != null
                   ? NetworkImage(controller.targetUser!.avatarUrl!)
                   : null,
-              child: controller.targetUser?.avatarUrl == null
-                  ? Text(
-                      (controller.targetUser?.displayName ?? controller.targetUser?.username ?? 'C')[0].toUpperCase(),
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    )
-                  : null,
+              child: controller.isGroup
+                  ? const Icon(Icons.groups_rounded, color: AppColors.primary, size: 20)
+                  : (controller.targetUser?.avatarUrl == null
+                      ? Text(
+                          (controller.title.isNotEmpty ? controller.title[0] : 'C').toUpperCase(),
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        )
+                      : null),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -182,7 +184,7 @@ class ChatView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    controller.targetUser?.displayName ?? controller.targetUser?.username ?? 'Chat',
+                    controller.title,
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -190,7 +192,9 @@ class ChatView extends StatelessWidget {
                     () => Text(
                       controller.isPartnerTyping.value
                           ? 'typing...'
-                          : (controller.targetUser?.isOnline == true ? 'Online' : 'Offline'),
+                          : (controller.isGroup
+                              ? 'Group Chat'
+                              : (controller.targetUser?.isOnline == true ? 'Online' : 'Offline')),
                       style: TextStyle(
                         fontSize: 11,
                         fontStyle: controller.isPartnerTyping.value ? FontStyle.italic : FontStyle.normal,
@@ -299,6 +303,7 @@ class ChatView extends StatelessWidget {
                     final isMe = message.senderId == controller.currentUserId;
                     final isImage = message.type == 'image' && message.mediaUrl != null;
                     final isAudio = message.type == 'audio' && message.mediaUrl != null;
+                    final senderName = message.sender?.displayName ?? message.sender?.username;
 
                     return Align(
                       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -334,8 +339,22 @@ class ChatView extends StatelessWidget {
                             ],
                           ),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
+                              // Display Sender Name for Incoming Messages
+                              if (!isMe && senderName != null && senderName.isNotEmpty) ...[
+                                Text(
+                                  senderName,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                              ],
+
                               if (isImage) ...[
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
@@ -371,8 +390,9 @@ class ChatView extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 4),
                               ],
-                              Padding(
-                                padding: isImage ? const EdgeInsets.only(right: 6, bottom: 4) : EdgeInsets.zero,
+
+                              Align(
+                                alignment: Alignment.bottomRight,
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
