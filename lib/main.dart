@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'app/routes/app_pages.dart';
 import 'app/services/auth_service.dart';
+import 'app/services/call_service.dart';
 import 'app/services/media_service.dart';
 import 'app/services/supabase_service.dart';
 import 'app/theme/app_theme.dart';
@@ -13,6 +14,7 @@ void main() async {
   await Get.putAsync(() => SupabaseService().init());
   await Get.putAsync(() => AuthService().init());
   Get.put(MediaService());
+  Get.put(CallService());
 
   runApp(const MeetXApp());
 }
