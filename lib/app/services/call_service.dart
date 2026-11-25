@@ -5,12 +5,14 @@ import 'package:get/get.dart' hide navigator;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/call_model.dart';
 import '../data/models/user_model.dart';
+import '../data/repositories/chat_repository.dart';
 import '../routes/app_pages.dart';
 import 'supabase_service.dart';
 import 'webrtc_helper.dart';
 
 class CallService extends GetxService {
   final SupabaseClient _client = Get.find<SupabaseService>().client;
+  final ChatRepository _chatRepository = ChatRepository();
 
   RTCPeerConnection? peerConnection;
   MediaStream? localStream;
@@ -27,6 +29,7 @@ class CallService extends GetxService {
   final Rx<CallModel?> currentCall = Rx<CallModel?>(null);
   RealtimeChannel? _signalingChannel;
   String _myUserId = '';
+  DateTime? _callStartTime;
 
   static const Map<String, dynamic> _iceServers = {
     'iceServers': [
@@ -84,6 +87,7 @@ class CallService extends GetxService {
       callback: (payload) async {
         final callerId = payload['caller_id'] as String?;
         if (callerId == _myUserId && peerConnection != null) {
+          _callStartTime = DateTime.now();
           final receiverId = payload['receiver_id'] as String?;
 
           final offer = await peerConnection!.createOffer();
@@ -107,6 +111,7 @@ class CallService extends GetxService {
       callback: (payload) async {
         final receiverId = payload['receiver_id'] as String?;
         if (receiverId == _myUserId && peerConnection != null) {
+          _callStartTime = DateTime.now();
           final sdp = payload['sdp'] as String?;
           final type = payload['type'] as String?;
           if (sdp != null && type != null) {
@@ -172,6 +177,7 @@ class CallService extends GetxService {
       callback: (payload) {
         final targetId = payload['target_id'] as String?;
         if (targetId == _myUserId) {
+          _logCallInChat(isMissed: true);
           endCall();
           Get.snackbar(
             'Call Declined',
@@ -188,12 +194,46 @@ class CallService extends GetxService {
       callback: (payload) {
         final targetId = payload['target_id'] as String?;
         if (targetId == _myUserId) {
+          _logCallInChat(isMissed: false);
           endCall();
         }
       },
     );
 
     _signalingChannel?.subscribe();
+  }
+
+  /// Log call activity to chat database
+  Future<void> _logCallInChat({required bool isMissed}) async {
+    final call = currentCall.value;
+    if (call == null) return;
+
+    try {
+      final targetUserId = call.callerId == _myUserId ? call.receiverId : call.callerId;
+      final chatId = await _chatRepository.getOrCreateSingleChat(targetUserId);
+
+      String content;
+      if (isMissed) {
+        content = call.hasVideo ? '📹 Missed video call' : '📞 Missed voice call';
+      } else if (_callStartTime != null) {
+        final durationSeconds = DateTime.now().difference(_callStartTime!).inSeconds;
+        final mins = (durationSeconds ~/ 60).toString().padLeft(2, '0');
+        final secs = (durationSeconds % 60).toString().padLeft(2, '0');
+        content = call.hasVideo
+            ? '📹 Video call ($mins:$secs)'
+            : '📞 Voice call ($mins:$secs)';
+      } else {
+        content = call.hasVideo ? '📹 Missed video call' : '📞 Missed voice call';
+      }
+
+      await _chatRepository.sendMessage(
+        chatId: chatId,
+        content: content,
+        type: 'call',
+      );
+    } catch (e) {
+      debugPrint('DEBUG _logCallInChat error: $e');
+    }
   }
 
   /// Send broadcast signal helper
@@ -215,6 +255,7 @@ class CallService extends GetxService {
     required UserModel currentUser,
     required bool hasVideo,
   }) async {
+    _callStartTime = null;
     final callId = 'call_${DateTime.now().millisecondsSinceEpoch}';
     final call = CallModel(
       id: callId,
@@ -244,6 +285,7 @@ class CallService extends GetxService {
 
   /// Accept an incoming call
   Future<void> acceptCall(CallModel call) async {
+    _callStartTime = DateTime.now();
     currentCall.value = call.copyWith(status: 'accepted');
 
     // 1. Initialize local media stream & peerConnection
@@ -268,6 +310,7 @@ class CallService extends GetxService {
         'callId': call.id,
       },
     );
+    _logCallInChat(isMissed: true);
     endCall();
   }
 
@@ -380,6 +423,8 @@ class CallService extends GetxService {
   /// End and clean up active call
   Future<void> endCall() async {
     try {
+      _logCallInChat(isMissed: _callStartTime == null);
+
       final targetId = currentCall.value?.callerId == _client.auth.currentUser?.id
           ? currentCall.value?.receiverId
           : currentCall.value?.callerId;
@@ -402,6 +447,7 @@ class CallService extends GetxService {
       localRenderer.srcObject = null;
       remoteRenderer.srcObject = null;
       currentCall.value = null;
+      _callStartTime = null;
     } catch (e) {
       debugPrint('DEBUG endCall error: $e');
     }

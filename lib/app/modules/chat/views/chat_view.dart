@@ -347,6 +347,8 @@ class ChatView extends StatelessWidget {
                     final isMe = message.senderId == controller.currentUserId;
                     final isImage = message.type == 'image' && message.mediaUrl != null;
                     final isAudio = message.type == 'audio' && message.mediaUrl != null;
+                    final isCall = message.type == 'call';
+                    final isMissed = (message.content ?? '').contains('Missed');
                     final senderName = message.sender?.displayName ?? message.sender?.username;
                     final memberColor = _getMemberColor(message.senderId);
 
@@ -358,7 +360,7 @@ class ChatView extends StatelessWidget {
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 6),
                           constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.75,
+                            maxWidth: MediaQuery.of(context).size.width * 0.78,
                           ),
                           padding: isImage
                               ? const EdgeInsets.all(4)
@@ -401,7 +403,36 @@ class ChatView extends StatelessWidget {
                                   const SizedBox(height: 2),
                                 ],
 
-                                if (isImage) ...[
+                                if (isCall) ...[
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        isMe
+                                            ? Icons.call_made_rounded
+                                            : (isMissed ? Icons.call_missed_rounded : Icons.call_received_rounded),
+                                        size: 18,
+                                        color: isMissed
+                                            ? Colors.redAccent
+                                            : (isMe ? Colors.white : AppColors.onlineGreen),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          message.content ?? 'Call',
+                                          style: TextStyle(
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: isMe
+                                                ? Colors.white
+                                                : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                ] else if (isImage) ...[
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(10),
                                     child: Image.network(
