@@ -230,128 +230,195 @@ class HomeView extends StatelessWidget {
             final avatar = chat.getChatAvatar(authService.currentUser.value?.id ?? '');
             final partner = chat.getOtherUser(authService.currentUser.value?.id ?? '');
             final isOnline = partner?.isOnline == true && !chat.isGroup;
+            final lastMsg = chat.lastMessage;
 
             return Container(
               margin: const EdgeInsets.only(bottom: 10),
               decoration: BoxDecoration(
                 color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: isDark ? Colors.white.withAlpha(10) : Colors.grey.withAlpha(25),
+                  width: 1,
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withAlpha(isDark ? 40 : 8),
-                    blurRadius: 10,
+                    color: Colors.black.withAlpha(isDark ? 50 : 10),
+                    blurRadius: 12,
+                    spreadRadius: 1,
                     offset: const Offset(0, 3),
                   ),
                 ],
               ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                leading: Stack(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: isOnline
-                            ? const LinearGradient(
-                                colors: [AppColors.primary, AppColors.onlineGreen],
-                              )
-                            : null,
-                      ),
-                      child: CircleAvatar(
-                        radius: 24,
-                        backgroundColor: AppColors.primary.withAlpha(40),
-                        backgroundImage: avatar != null ? NetworkImage(avatar) : null,
-                        child: avatar == null
-                            ? Text(
-                                title[0].toUpperCase(),
-                                style: const TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                ),
-                              )
-                            : null,
-                      ),
-                    ),
-                    if (isOnline)
-                      Positioned(
-                        right: 2,
-                        bottom: 2,
-                        child: Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: AppColors.onlineGreen,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: isDark ? AppColors.darkSurface : Colors.white,
-                              width: 2,
+              child: Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(18),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(18),
+                  onTap: () {
+                    Get.toNamed(
+                      Routes.CHAT,
+                      arguments: {
+                        'chatId': chat.id,
+                        'targetUser': partner,
+                      },
+                    )?.then((_) => controller.loadUserChats());
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    child: Row(
+                      children: [
+                        // Avatar with Gradient Ring
+                        Stack(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(2.5),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: isOnline
+                                    ? const LinearGradient(
+                                        colors: [AppColors.primary, AppColors.onlineGreen],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      )
+                                    : LinearGradient(
+                                        colors: [
+                                          AppColors.primary.withAlpha(50),
+                                          AppColors.primary.withAlpha(20),
+                                        ],
+                                      ),
+                              ),
+                              child: CircleAvatar(
+                                radius: 25,
+                                backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+                                backgroundImage: avatar != null ? NetworkImage(avatar) : null,
+                                child: avatar == null
+                                    ? Text(
+                                        title[0].toUpperCase(),
+                                        style: const TextStyle(
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 19,
+                                        ),
+                                      )
+                                    : null,
+                              ),
                             ),
+                            if (isOnline)
+                              Positioned(
+                                right: 2,
+                                bottom: 2,
+                                child: Container(
+                                  width: 13,
+                                  height: 13,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.onlineGreen,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: isDark ? AppColors.darkSurface : Colors.white,
+                                      width: 2.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(width: 14),
+
+                        // Title & Last Message Content
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16,
+                                  letterSpacing: 0.2,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  if (lastMsg?.type == 'image') ...[
+                                    const Icon(Icons.camera_alt_rounded, size: 14, color: AppColors.primary),
+                                    const SizedBox(width: 4),
+                                  ] else if (lastMsg?.type == 'audio') ...[
+                                    const Icon(Icons.mic_rounded, size: 14, color: AppColors.primary),
+                                    const SizedBox(width: 4),
+                                  ],
+                                  Expanded(
+                                    child: Text(
+                                      lastMsg?.content ?? 'No messages yet',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: chat.unreadCount > 0 ? FontWeight.w600 : FontWeight.normal,
+                                        color: chat.unreadCount > 0
+                                            ? (isDark ? Colors.white : Colors.black87)
+                                            : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                  ],
-                ),
-                title: Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5),
-                ),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 4.0),
-                  child: Text(
-                    chat.lastMessage?.content ?? 'No messages yet',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                        const SizedBox(width: 10),
+
+                        // Time & Unread Badge Counter
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            if (lastMsg != null && lastMsg.createdAt != null)
+                              Text(
+                                '${lastMsg.createdAt!.hour.toString().padLeft(2, '0')}:${lastMsg.createdAt!.minute.toString().padLeft(2, '0')}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: chat.unreadCount > 0 ? FontWeight.bold : FontWeight.w500,
+                                  color: chat.unreadCount > 0
+                                      ? AppColors.primary
+                                      : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                                ),
+                              ),
+                            const SizedBox(height: 6),
+                            if (chat.unreadCount > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [AppColors.primary, AppColors.accentGradientEnd],
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppColors.primary.withAlpha(80),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  '${chat.unreadCount}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    if (chat.lastMessage?.createdAt != null)
-                      Text(
-                        '${chat.lastMessage!.createdAt!.hour.toString().padLeft(2, '0')}:${chat.lastMessage!.createdAt!.minute.toString().padLeft(2, '0')}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                        ),
-                      ),
-                    const SizedBox(height: 6),
-                    if (chat.unreadCount > 0)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [AppColors.primary, AppColors.accentGradientEnd],
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '${chat.unreadCount}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                onTap: () {
-                  Get.toNamed(
-                    Routes.CHAT,
-                    arguments: {
-                      'chatId': chat.id,
-                      'targetUser': partner,
-                    },
-                  )?.then((_) => controller.loadUserChats());
-                },
               ),
             );
           },
