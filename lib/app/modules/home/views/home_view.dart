@@ -21,30 +21,38 @@ class HomeView extends StatelessWidget {
       initialIndex: 0,
       child: Scaffold(
         appBar: AppBar(
-          elevation: 0,
+          elevation: 2,
           scrolledUnderElevation: 0,
-          title: ShaderMask(
-            shaderCallback: (bounds) => const LinearGradient(
-              colors: [AppColors.primary, AppColors.accentGradientEnd],
-            ).createShader(bounds),
-            child: const Text(
-              'MeetX',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.2,
-                color: Colors.white,
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF6C5CE7),
+                  Color(0xFF4834DF),
+                ],
               ),
+            ),
+          ),
+          title: const Text(
+            'MeetX',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+              color: Colors.white,
             ),
           ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.search_rounded, size: 24),
+              icon: const Icon(Icons.search_rounded, size: 24, color: Colors.white),
               tooltip: 'Search',
               onPressed: () => Get.toNamed(Routes.USER_SEARCH),
             ),
             PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert_rounded, size: 24),
+              icon: const Icon(Icons.more_vert_rounded, size: 24, color: Colors.white),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               onSelected: (value) {
                 if (value == 'group') {
@@ -89,29 +97,30 @@ class HomeView extends StatelessWidget {
             ),
           ],
           bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(48),
+            preferredSize: const Size.fromHeight(52),
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
-                color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+                color: Colors.black.withAlpha(45),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: TabBar(
                 indicator: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(11),
+                  color: Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withAlpha(90),
-                      blurRadius: 8,
+                      color: Colors.black.withAlpha(50),
+                      blurRadius: 6,
                       offset: const Offset(0, 2),
                     ),
                   ],
                 ),
                 indicatorSize: TabBarIndicatorSize.tab,
                 dividerColor: Colors.transparent,
-                labelColor: Colors.white,
-                unselectedLabelColor: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                labelColor: AppColors.primary,
+                unselectedLabelColor: Colors.white.withAlpha(200),
                 labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                 tabs: const [
                   Tab(text: 'Chats'),
