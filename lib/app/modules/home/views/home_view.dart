@@ -21,41 +21,31 @@ class HomeView extends StatelessWidget {
       initialIndex: 0,
       child: Scaffold(
         appBar: AppBar(
-          elevation: 1,
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.primary, AppColors.accentGradientEnd],
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withAlpha(80),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 20),
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          title: ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [AppColors.primary, AppColors.accentGradientEnd],
+            ).createShader(bounds),
+            child: const Text(
+              'MeetX',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+                color: Colors.white,
               ),
-              const SizedBox(width: 10),
-              const Text(
-                'MeetX',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-              ),
-            ],
+            ),
           ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.search_rounded),
+              icon: const Icon(Icons.search_rounded, size: 24),
               tooltip: 'Search',
               onPressed: () => Get.toNamed(Routes.USER_SEARCH),
             ),
             PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert_rounded),
+              icon: const Icon(Icons.more_vert_rounded, size: 24),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               onSelected: (value) {
                 if (value == 'group') {
                   Get.toNamed(Routes.GROUP_CREATE);
@@ -80,8 +70,8 @@ class HomeView extends StatelessWidget {
                   child: Row(
                     children: [
                       Icon(Icons.group_add_rounded, size: 20, color: AppColors.primary),
-                      SizedBox(width: 10),
-                      Text('New Group'),
+                      SizedBox(width: 12),
+                      Text('New Group', style: TextStyle(fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ),
@@ -90,25 +80,46 @@ class HomeView extends StatelessWidget {
                   child: Row(
                     children: [
                       Icon(Icons.logout_rounded, size: 20, color: Colors.redAccent),
-                      SizedBox(width: 10),
-                      Text('Logout'),
+                      SizedBox(width: 12),
+                      Text('Logout', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.redAccent)),
                     ],
                   ),
                 ),
               ],
             ),
           ],
-          bottom: TabBar(
-            indicatorColor: AppColors.primary,
-            indicatorWeight: 3,
-            labelColor: AppColors.primary,
-            unselectedLabelColor: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-            labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-            tabs: const [
-              Tab(text: 'Chats'),
-              Tab(text: 'Status'),
-              Tab(text: 'Calls'),
-            ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(48),
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: TabBar(
+                indicator: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: AppColors.primary,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withAlpha(90),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                indicatorSize: TabBarIndicatorSize.tab,
+                dividerColor: Colors.transparent,
+                labelColor: Colors.white,
+                unselectedLabelColor: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                tabs: const [
+                  Tab(text: 'Chats'),
+                  Tab(text: 'Status'),
+                  Tab(text: 'Calls'),
+                ],
+              ),
+            ),
           ),
         ),
         body: TabBarView(
@@ -116,19 +127,20 @@ class HomeView extends StatelessWidget {
             // TAB 1: Chats
             _buildChatsTab(context, controller, authService, isDark),
 
-            // TAB 2: Status (Placeholder for Phase 4/Status updates)
+            // TAB 2: Status
             _buildStatusTab(context, isDark),
 
-            // TAB 3: Calls (Placeholder for Phase 6 WebRTC Calls)
+            // TAB 3: Calls
             _buildCallsTab(context, isDark),
           ],
         ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () => Get.toNamed(Routes.USER_SEARCH),
-          icon: const Icon(Icons.chat_bubble_outline_rounded),
-          label: const Text('New Chat'),
+          icon: const Icon(Icons.chat_bubble_rounded),
+          label: const Text('New Chat', style: TextStyle(fontWeight: FontWeight.bold)),
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
+          elevation: 4,
         ),
       ),
     );
@@ -152,12 +164,19 @@ class HomeView extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.chat_bubble_outline_rounded,
-                size: 72,
-                color: (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight).withAlpha(100),
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withAlpha(20),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.chat_bubble_outline_rounded,
+                  size: 56,
+                  color: AppColors.primary,
+                ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               Text(
                 'No conversations yet',
                 style: TextStyle(
@@ -183,44 +202,65 @@ class HomeView extends StatelessWidget {
         onRefresh: controller.loadUserChats,
         color: AppColors.primary,
         child: ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           itemCount: controller.chatList.length,
           itemBuilder: (context, index) {
             final chat = controller.chatList[index];
             final title = chat.getChatTitle(authService.currentUser.value?.id ?? '');
             final avatar = chat.getChatAvatar(authService.currentUser.value?.id ?? '');
             final partner = chat.getOtherUser(authService.currentUser.value?.id ?? '');
+            final isOnline = partner?.isOnline == true && !chat.isGroup;
 
-            return Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              elevation: 0.5,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(isDark ? 40 : 8),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
               child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 leading: Stack(
                   children: [
-                    CircleAvatar(
-                      radius: 24,
-                      backgroundColor: AppColors.primary.withAlpha(40),
-                      backgroundImage: avatar != null ? NetworkImage(avatar) : null,
-                      child: avatar == null
-                          ? Text(
-                              title[0].toUpperCase(),
-                              style: const TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                              ),
-                            )
-                          : null,
+                    Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: isOnline
+                            ? const LinearGradient(
+                                colors: [AppColors.primary, AppColors.onlineGreen],
+                              )
+                            : null,
+                      ),
+                      child: CircleAvatar(
+                        radius: 24,
+                        backgroundColor: AppColors.primary.withAlpha(40),
+                        backgroundImage: avatar != null ? NetworkImage(avatar) : null,
+                        child: avatar == null
+                            ? Text(
+                                title[0].toUpperCase(),
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                ),
+                              )
+                            : null,
+                      ),
                     ),
-                    if (partner?.isOnline == true && !chat.isGroup)
+                    if (isOnline)
                       Positioned(
-                        right: 0,
-                        bottom: 0,
+                        right: 2,
+                        bottom: 2,
                         child: Container(
-                          width: 13,
-                          height: 13,
+                          width: 12,
+                          height: 12,
                           decoration: BoxDecoration(
                             color: AppColors.onlineGreen,
                             shape: BoxShape.circle,
@@ -235,15 +275,18 @@ class HomeView extends StatelessWidget {
                 ),
                 title: Text(
                   title,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5),
                 ),
-                subtitle: Text(
-                  chat.lastMessage?.content ?? 'No messages yet',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 4.0),
+                  child: Text(
+                    chat.lastMessage?.content ?? 'No messages yet',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                    ),
                   ),
                 ),
                 trailing: Column(
@@ -255,16 +298,19 @@ class HomeView extends StatelessWidget {
                         '${chat.lastMessage!.createdAt!.hour.toString().padLeft(2, '0')}:${chat.lastMessage!.createdAt!.minute.toString().padLeft(2, '0')}',
                         style: TextStyle(
                           fontSize: 11,
+                          fontWeight: FontWeight.w500,
                           color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                         ),
                       ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     if (chat.unreadCount > 0)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: const BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [AppColors.primary, AppColors.accentGradientEnd],
+                          ),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
                           '${chat.unreadCount}',
@@ -299,12 +345,19 @@ class HomeView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.donut_large_rounded,
-            size: 64,
-            color: (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight).withAlpha(100),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withAlpha(20),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.donut_large_rounded,
+              size: 56,
+              color: AppColors.primary,
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Text(
             'Status Updates',
             style: TextStyle(
@@ -331,12 +384,19 @@ class HomeView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.add_call,
-            size: 64,
-            color: (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight).withAlpha(100),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withAlpha(20),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.add_call,
+              size: 56,
+              color: AppColors.primary,
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Text(
             'No Recent Calls',
             style: TextStyle(
