@@ -14,7 +14,8 @@ Inspired by WhatsApp's seamless functionality, MeetX features a unique, modern U
 | **State & Navigation** | [GetX](https://pub.dev/packages/get) + Clean Architecture | Free |
 | **Backend & Database** | [Supabase](https://supabase.com) (PostgreSQL + Realtime WebSockets) | Free |
 | **Authentication** | Supabase Auth (Email, Password, Google OAuth) | Free |
-| **Storage & Media** | Supabase Storage (Profile pictures, Voice notes, Attachments) | Free |
+| **Storage & Media** | Supabase Storage (Profile pictures, Voice notes, Documents) | Free |
+| **Realtime WebRTC** | `flutter_webrtc` (P2P Audio & Video Calling) | Free |
 | **Theme & Typography** | Material 3 + Google Fonts (`Plus Jakarta Sans`) | Free |
 | **Environment Config** | `flutter_dotenv` (`.env`) | Free |
 
@@ -26,25 +27,29 @@ Inspired by WhatsApp's seamless functionality, MeetX features a unique, modern U
 lib/
 ├── app/
 │   ├── data/
-│   │   ├── models/            # UserModel, ChatModel, MessageModel
+│   │   ├── models/            # UserModel, ChatModel, MessageModel, CallModel
 │   │   ├── providers/         # Low-level API & Supabase callers
 │   │   └── repositories/      # AuthRepository & ChatRepository (Realtime & Queries)
 │   ├── modules/
 │   │   ├── auth/              # AuthView & AuthController
+│   │   ├── call/              # IncomingCallView & CallView (WebRTC Audio/Video Controls)
 │   │   ├── chat/              # ChatView, UserSearchView, GroupCreateView & Controllers
-│   │   ├── home/              # HomeView & HomeController (Conversations & Unread Badges)
+│   │   ├── home/              # HomeView & HomeController (Conversations, Status & Calls History)
 │   │   └── splash/            # SplashView & SplashController
 │   ├── routes/
 │   │   ├── app_pages.dart     # Dynamic Route Mapping & GetPages
 │   │   └── app_routes.dart    # Route Paths Constants
 │   ├── services/
 │   │   ├── auth_service.dart     # Global Auth State Listener & Presence Manager
+│   │   ├── call_service.dart     # WebRTC Media Streams & Supabase Signaling Engine
+│   │   ├── media_service.dart    # Camera, Gallery, Audio & Document Uploading
 │   │   └── supabase_service.dart # Global Supabase & DotEnv Service
 │   ├── theme/
 │   │   ├── app_colors.dart    # Electric Purple & Dark Violet Palette
 │   │   └── app_theme.dart     # Light & Dark Material3 ThemeData
 │   └── widgets/
-│       └── google_logo.dart   # Vector-sharp 4-Color Official Google Logo
+│       ├── google_logo.dart   # Vector-sharp 4-Color Official Google Logo
+│       └── voice_note_player.dart # Custom Audio Player Widget for Voice Notes
 └── main.dart                  # App Entry Point & Service Binding
 ```
 
@@ -101,9 +106,19 @@ flutter run
   - Online / Offline Status Presence tracking (`WidgetsBindingObserver`)
   - Group Chat Creation (`GroupCreateView` with multi-member selector)
   - Active Conversations List on `HomeView` with unread badge counters
-- [ ] **Phase 4: Voice Notes & Media Sharing**
+- [x] **Phase 4: Media Sharing, Voice Notes & Documents**
+  - Camera & Gallery Photo Sharing with Full-Screen Viewer
+  - Voice Notes Recording (`🔴 00:05`) & In-Bubble Audio Player (`VoiceNotePlayer`)
+  - Document & File Sharing (.pdf, .doc, .zip, etc.) with `url_launcher` open/download card
+  - In-App Emoji Keyboard Picker (`emoji_picker_flutter`)
 - [ ] **Phase 5: Push Notifications & Deep Linking**
-- [ ] **Phase 6: WebRTC Audio & Video Calling**
+- [x] **Phase 6: WebRTC Audio & Video Calling**
+  - P2P WebRTC HD Voice Calling & HD Video Calling
+  - Fullscreen Glassmorphic Incoming Call Screen (`IncomingCallView`)
+  - Full Active Call Screen (`CallView`) with Picture-in-Picture camera preview
+  - Mic Mute, Video Toggle, Front/Rear Camera Switcher & Speakerphone controls
+  - 30-Second Ringing Timeout for missed calls
+  - WhatsApp-Style In-Chat Call History Log Bubbles & Calls Tab
 - [ ] **Phase 7: AI Suggested Replies (Gemini API)**
 
 ---

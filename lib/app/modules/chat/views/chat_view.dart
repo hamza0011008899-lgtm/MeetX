@@ -1,6 +1,7 @@
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../routes/app_pages.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/call_service.dart';
@@ -70,6 +71,15 @@ class ChatView extends StatelessWidget {
                   onTap: () {
                     Get.back();
                     controller.sendImage(false);
+                  },
+                ),
+                _buildAttachmentItem(
+                  icon: Icons.insert_drive_file_rounded,
+                  label: 'Document',
+                  color: Colors.orangeAccent,
+                  onTap: () {
+                    Get.back();
+                    controller.sendDocument();
                   },
                 ),
               ],
@@ -161,6 +171,21 @@ class ChatView extends StatelessWidget {
     );
   }
 
+  void _openDocument(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Could not open document',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
+
   String _formatRecordTime(int seconds) {
     final mins = (seconds ~/ 60).toString().padLeft(2, '0');
     final secs = (seconds % 60).toString().padLeft(2, '0');
@@ -236,7 +261,7 @@ class ChatView extends StatelessWidget {
               if (controller.targetUser == null) {
                 Get.snackbar(
                   'Group Call',
-                  'Group Voice Calling will be activated in Step 5!',
+                  'Group Voice Calling will be activated in Phase 6!',
                   snackPosition: SnackPosition.BOTTOM,
                 );
                 return;
@@ -259,7 +284,7 @@ class ChatView extends StatelessWidget {
               if (controller.targetUser == null) {
                 Get.snackbar(
                   'Group Call',
-                  'Group Video Calling will be activated in Step 5!',
+                  'Group Video Calling will be activated in Phase 6!',
                   snackPosition: SnackPosition.BOTTOM,
                 );
                 return;
@@ -347,6 +372,7 @@ class ChatView extends StatelessWidget {
                     final isMe = message.senderId == controller.currentUserId;
                     final isImage = message.type == 'image' && message.mediaUrl != null;
                     final isAudio = message.type == 'audio' && message.mediaUrl != null;
+                    final isFile = message.type == 'file' && message.mediaUrl != null;
                     final isCall = message.type == 'call';
                     final isMissed = (message.content ?? '').contains('Missed');
                     final senderName = message.sender?.displayName ?? message.sender?.username;
@@ -356,7 +382,9 @@ class ChatView extends StatelessWidget {
                       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                       child: GestureDetector(
                         onLongPress: () => _showMessageOptions(context, controller, message, isMe),
-                        onTap: isImage ? () => _openFullScreenImage(message.mediaUrl!) : null,
+                        onTap: isImage
+                            ? () => _openFullScreenImage(message.mediaUrl!)
+                            : (isFile ? () => _openDocument(message.mediaUrl!) : null),
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 6),
                           constraints: BoxConstraints(
@@ -430,6 +458,46 @@ class ChatView extends StatelessWidget {
                                         ),
                                       ),
                                     ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                ] else if (isFile) ...[
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: isMe ? Colors.white.withAlpha(30) : AppColors.primary.withAlpha(20),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.insert_drive_file_rounded,
+                                          color: isMe ? Colors.white : AppColors.primary,
+                                          size: 26,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Flexible(
+                                          child: Text(
+                                            message.content ?? 'Document',
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                              color: isMe
+                                                  ? Colors.white
+                                                  : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Icon(
+                                          Icons.download_rounded,
+                                          color: isMe ? Colors.white70 : AppColors.primary,
+                                          size: 20,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                   const SizedBox(height: 2),
                                 ] else if (isImage) ...[

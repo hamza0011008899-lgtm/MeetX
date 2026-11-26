@@ -226,6 +226,49 @@ class ChatController extends GetxController {
     }
   }
 
+  /// Send a Document/File Message (.pdf, .doc, .zip, etc.)
+  Future<void> sendDocument() async {
+    final File? file = await _mediaService.pickDocument();
+    if (file == null) return;
+
+    isUploadingMedia.value = true;
+    try {
+      final rawName = file.path.split('/').last.split('\\').last;
+      final fileName = 'doc_${DateTime.now().millisecondsSinceEpoch}_$rawName';
+      final path = '$chatId/$fileName';
+
+      final publicUrl = await _mediaService.uploadMedia(
+        file: file,
+        bucketName: 'chat_media',
+        path: path,
+        mimeType: 'application/octet-stream',
+      );
+
+      if (publicUrl != null) {
+        final sentMessage = await _chatRepository.sendMessage(
+          chatId: chatId,
+          content: rawName,
+          type: 'file',
+          mediaUrl: publicUrl,
+        );
+
+        if (!messages.any((m) => m.id == sentMessage.id)) {
+          messages.add(sentMessage);
+          _scrollToBottom();
+        }
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Upload Error',
+        e.toString(),
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 4),
+      );
+    } finally {
+      isUploadingMedia.value = false;
+    }
+  }
+
   /// Start recording voice note
   Future<void> startVoiceRecording() async {
     final success = await _mediaService.startAudioRecording();
