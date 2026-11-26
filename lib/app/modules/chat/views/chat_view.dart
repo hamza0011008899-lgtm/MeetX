@@ -29,63 +29,65 @@ class ChatView extends StatelessWidget {
 
   void _showAttachmentOptions(BuildContext context, ChatController controller) {
     Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? AppColors.darkSurface
-              : AppColors.lightSurface,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(24),
-            topRight: Radius.circular(24),
+      SafeArea(
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? AppColors.darkSurface
+                : AppColors.lightSurface,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
+            ),
           ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.withAlpha(100),
-                borderRadius: BorderRadius.circular(2),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withAlpha(100),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildAttachmentItem(
-                  icon: Icons.camera_alt_rounded,
-                  label: 'Camera',
-                  color: Colors.pinkAccent,
-                  onTap: () {
-                    Get.back();
-                    controller.sendImage(true);
-                  },
-                ),
-                _buildAttachmentItem(
-                  icon: Icons.photo_library_rounded,
-                  label: 'Gallery',
-                  color: AppColors.primary,
-                  onTap: () {
-                    Get.back();
-                    controller.sendImage(false);
-                  },
-                ),
-                _buildAttachmentItem(
-                  icon: Icons.insert_drive_file_rounded,
-                  label: 'Document',
-                  color: Colors.orangeAccent,
-                  onTap: () {
-                    Get.back();
-                    controller.sendDocument();
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-          ],
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildAttachmentItem(
+                    icon: Icons.camera_alt_rounded,
+                    label: 'Camera',
+                    color: Colors.pinkAccent,
+                    onTap: () {
+                      Get.back();
+                      controller.sendImage(true);
+                    },
+                  ),
+                  _buildAttachmentItem(
+                    icon: Icons.photo_library_rounded,
+                    label: 'Gallery',
+                    color: AppColors.primary,
+                    onTap: () {
+                      Get.back();
+                      controller.sendImage(false);
+                    },
+                  ),
+                  _buildAttachmentItem(
+                    icon: Icons.insert_drive_file_rounded,
+                    label: 'Document',
+                    color: Colors.orangeAccent,
+                    onTap: () {
+                      Get.back();
+                      controller.sendDocument();
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
         ),
       ),
     );
@@ -114,41 +116,81 @@ class ChatView extends StatelessWidget {
   }
 
   void _showMessageOptions(BuildContext context, ChatController controller, dynamic message, bool isMe) {
+    final type = message.type as String? ?? 'text';
+
     Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? AppColors.darkSurface
-              : AppColors.lightSurface,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.copy_rounded, color: AppColors.primary),
-              title: const Text('Copy Text'),
-              onTap: () {
-                Get.back();
-                if (message.content != null) {
-                  controller.copyMessage(message.content!);
-                }
-              },
+      SafeArea(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? AppColors.darkSurface
+                : AppColors.lightSurface,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
             ),
-            if (isMe)
-              ListTile(
-                leading: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
-                title: const Text('Delete Message', style: TextStyle(color: Colors.redAccent)),
-                onTap: () {
-                  Get.back();
-                  controller.deleteMessage(message);
-                },
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withAlpha(100),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-          ],
+
+              // Copy Text Option (Text Messages Only)
+              if (type == 'text')
+                ListTile(
+                  leading: const Icon(Icons.copy_rounded, color: AppColors.primary),
+                  title: const Text('Copy Text'),
+                  onTap: () {
+                    Get.back();
+                    if (message.content != null) {
+                      controller.copyMessage(message.content!);
+                    }
+                  },
+                ),
+
+              // View Photo Option (Image Messages Only)
+              if (type == 'image' && message.mediaUrl != null)
+                ListTile(
+                  leading: const Icon(Icons.fullscreen_rounded, color: AppColors.primary),
+                  title: const Text('View Photo'),
+                  onTap: () {
+                    Get.back();
+                    _openFullScreenImage(message.mediaUrl!);
+                  },
+                ),
+
+              // Open Document Option (File Messages Only)
+              if (type == 'file' && message.mediaUrl != null)
+                ListTile(
+                  leading: const Icon(Icons.download_rounded, color: AppColors.primary),
+                  title: const Text('Open / Download Document'),
+                  onTap: () {
+                    Get.back();
+                    _openDocument(message.mediaUrl!);
+                  },
+                ),
+
+              // Delete Option for Sender
+              if (isMe)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+                  title: const Text('Delete Message', style: TextStyle(color: Colors.redAccent)),
+                  onTap: () {
+                    Get.back();
+                    controller.deleteMessage(message);
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );
