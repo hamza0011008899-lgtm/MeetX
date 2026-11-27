@@ -33,11 +33,16 @@ class CallService extends GetxService {
   DateTime? _callStartTime;
   Timer? _ringingTimeoutTimer;
 
+  final List<RTCIceCandidate> _pendingIceCandidates = [];
+
   static const Map<String, dynamic> _iceServers = {
     'iceServers': [
       {'urls': 'stun:stun.l.google.com:19302'},
       {'urls': 'stun:stun1.l.google.com:19302'},
       {'urls': 'stun:stun2.l.google.com:19302'},
+      {'urls': 'stun:stun3.l.google.com:19302'},
+      {'urls': 'stun:stun4.l.google.com:19302'},
+      {'urls': 'stun:stun.services.mozilla.com'},
     ]
   };
 
@@ -93,6 +98,7 @@ class CallService extends GetxService {
           _callStartTime = DateTime.now();
           final receiverId = payload['receiver_id'] as String?;
 
+          debugPrint('DEBUG Call accepted by receiver, creating SDP offer...');
           final offer = await peerConnection!.createOffer();
           await peerConnection!.setLocalDescription(offer);
 
@@ -119,9 +125,12 @@ class CallService extends GetxService {
           final sdp = payload['sdp'] as String?;
           final type = payload['type'] as String?;
           if (sdp != null && type != null) {
+            debugPrint('DEBUG Received SDP offer, setting remote description...');
             await peerConnection!.setRemoteDescription(
               RTCSessionDescription(sdp, type),
             );
+            _drainPendingIceCandidates();
+
             final answer = await peerConnection!.createAnswer();
             await peerConnection!.setLocalDescription(answer);
 
@@ -147,9 +156,11 @@ class CallService extends GetxService {
           final sdp = payload['sdp'] as String?;
           final type = payload['type'] as String?;
           if (sdp != null && type != null) {
+            debugPrint('DEBUG Received SDP answer, setting remote description...');
             await peerConnection!.setRemoteDescription(
               RTCSessionDescription(sdp, type),
             );
+            _drainPendingIceCandidates();
           }
         }
       },
@@ -160,16 +171,20 @@ class CallService extends GetxService {
       event: 'ice_candidate',
       callback: (payload) async {
         final targetId = payload['target_id'] as String?;
-        if (targetId == _myUserId && peerConnection != null) {
-          final candidate = payload['candidate'] as Map<String, dynamic>?;
-          if (candidate != null) {
-            await peerConnection!.addCandidate(
-              RTCIceCandidate(
-                candidate['candidate'] as String?,
-                candidate['sdpMid'] as String?,
-                candidate['sdpMLineIndex'] as int?,
-              ),
+        if (targetId == _myUserId) {
+          final candidateMap = payload['candidate'] as Map<String, dynamic>?;
+          if (candidateMap != null) {
+            final candidate = RTCIceCandidate(
+              candidateMap['candidate'] as String?,
+              candidateMap['sdpMid'] as String?,
+              candidateMap['sdpMLineIndex'] as int?,
             );
+
+            if (peerConnection != null && peerConnection!.getRemoteDescription() != null) {
+              await peerConnection!.addCandidate(candidate);
+            } else {
+              _pendingIceCandidates.add(candidate);
+            }
           }
         }
       },
@@ -205,6 +220,15 @@ class CallService extends GetxService {
     );
 
     _signalingChannel?.subscribe();
+  }
+
+  /// Drain queued ICE candidates once remote description is set
+  Future<void> _drainPendingIceCandidates() async {
+    if (peerConnection == null) return;
+    for (final candidate in _pendingIceCandidates) {
+      await peerConnection!.addCandidate(candidate);
+    }
+    _pendingIceCandidates.clear();
   }
 
   /// Log call activity to chat database
@@ -269,6 +293,7 @@ class CallService extends GetxService {
   }) async {
     _callStartTime = null;
     _myUserId = currentUser.id;
+    _pendingIceCandidates.clear();
 
     final callId = 'call_${DateTime.now().millisecondsSinceEpoch}';
     final call = CallModel(
@@ -316,6 +341,7 @@ class CallService extends GetxService {
   Future<void> acceptCall(CallModel call) async {
     _ringingTimeoutTimer?.cancel();
     _callStartTime = DateTime.now();
+    _pendingIceCandidates.clear();
     currentCall.value = call.copyWith(status: 'accepted');
 
     // 1. Initialize local media stream & peerConnection
@@ -394,10 +420,17 @@ class CallService extends GetxService {
       });
 
       peerConnection?.onTrack = (RTCTrackEvent event) {
+        debugPrint('DEBUG onTrack kind: ${event.track.kind}');
         if (event.streams.isNotEmpty) {
           remoteStream = event.streams[0];
           remoteRenderer.srcObject = remoteStream;
         }
+      };
+
+      peerConnection?.onAddStream = (MediaStream stream) {
+        debugPrint('DEBUG onAddStream received id: ${stream.id}');
+        remoteStream = stream;
+        remoteRenderer.srcObject = remoteStream;
       };
     } catch (e) {
       debugPrint('DEBUG initializeMedia error: $e');
@@ -479,6 +512,7 @@ class CallService extends GetxService {
       remoteRenderer.srcObject = null;
       currentCall.value = null;
       _callStartTime = null;
+      _pendingIceCandidates.clear();
 
       // Refresh Home View Chats and Calls Tabs
       if (Get.isRegistered<HomeController>()) {

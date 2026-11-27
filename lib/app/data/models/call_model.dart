@@ -66,4 +66,5 @@ class CallModel {
       createdAt: createdAt ?? this.createdAt,
     );
   }
+  just in time you know i want you badly in my life in this whole fucking universe i want to be a good developer but i dont know where to start and where to end i
 }
